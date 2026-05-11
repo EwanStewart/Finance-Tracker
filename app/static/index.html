@@ -285,16 +285,32 @@
         <section class="tab-panel" id="tab-accounts">
             <div class="card">
                 <div class="card-head">
-                    <h2>Accounts</h2>
-                    <button class="btn" id="add-account">+ Add account</button>
+                    <h2>Savings</h2>
+                    <button class="btn" id="add-savings">+ Add savings</button>
                 </div>
-                <table id="accounts">
+                <table id="savings-accounts">
                     <thead>
                         <tr>
                             <th>Name</th>
                             <th class="num">Balance</th>
                             <th class="num">Annual rate</th>
                             <th class="num">Monthly allocation</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="card">
+                <div class="card-head">
+                    <h2>Credit cards</h2>
+                    <button class="btn" id="add-credit-card">+ Add credit card</button>
+                </div>
+                <table id="credit-cards">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th class="num">Balance</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -616,97 +632,140 @@
             });
         }
 
-        function accountToPayload(formRow) {
-            const inputs = formRow.querySelectorAll('input');
+        function savingsEditPayload(row) {
+            const inputs = row.querySelectorAll('input');
             return {
                 name: inputs[0].value.trim(),
                 balance_pence: Math.round(parseFloat(inputs[1].value || '0') * 100),
                 annual_rate_bp: Math.round(parseFloat(inputs[2].value || '0') * 100),
                 monthly_allocation_pence: Math.round(parseFloat(inputs[3].value || '0') * 100),
+                kind: 'savings',
             };
         }
 
-        function renderAccountEditRow(tbody, account, onSave, onCancel) {
+        function creditCardEditPayload(row) {
+            const inputs = row.querySelectorAll('input');
+            return {
+                name: inputs[0].value.trim(),
+                balance_pence: Math.round(parseFloat(inputs[1].value || '0') * 100),
+                annual_rate_bp: 0,
+                monthly_allocation_pence: 0,
+                kind: 'credit_card',
+            };
+        }
+
+        function renderSavingsEditRow(tbody, account, onSave, onCancel) {
             const row = tbody.insertRow();
             row.className = 'editing';
-            const nameCell = row.insertCell();
-            nameCell.innerHTML = `<input class="cell-input" type="text" value="${account?.name ?? ''}" placeholder="Account name">`;
-            const balCell = row.insertCell();
-            balCell.className = 'num';
-            balCell.innerHTML = `<input class="cell-input num" type="number" step="0.01" value="${account ? (account.balance_pence / 100).toFixed(2) : ''}">`;
-            const rateCell = row.insertCell();
-            rateCell.className = 'num';
-            rateCell.innerHTML = `<input class="cell-input num" type="number" step="0.01" value="${account ? (account.annual_rate_bp / 100).toFixed(2) : '0'}">`;
-            const allocCell = row.insertCell();
-            allocCell.className = 'num';
-            allocCell.innerHTML = `<input class="cell-input num" type="number" step="0.01" value="${account ? (account.monthly_allocation_pence / 100).toFixed(2) : '0'}">`;
-            const actionsCell = row.insertCell();
-            actionsCell.className = 'row-actions';
-            actionsCell.innerHTML = '<button class="btn">Save</button> <button class="btn btn-ghost">Cancel</button>';
-            const [saveBtn, cancelBtn] = actionsCell.querySelectorAll('button');
-            saveBtn.addEventListener('click', () => onSave(accountToPayload(row)));
-            cancelBtn.addEventListener('click', onCancel);
+            row.insertCell().innerHTML =
+                `<input class="cell-input" type="text" value="${account?.name ?? ''}" placeholder="Savings name">`;
+            const bal = row.insertCell();
+            bal.className = 'num';
+            bal.innerHTML = `<input class="cell-input num" type="number" step="0.01" value="${account ? (account.balance_pence / 100).toFixed(2) : ''}">`;
+            const rate = row.insertCell();
+            rate.className = 'num';
+            rate.innerHTML = `<input class="cell-input num" type="number" step="0.01" value="${account ? (account.annual_rate_bp / 100).toFixed(2) : '0'}">`;
+            const alloc = row.insertCell();
+            alloc.className = 'num';
+            alloc.innerHTML = `<input class="cell-input num" type="number" step="0.01" value="${account ? (account.monthly_allocation_pence / 100).toFixed(2) : '0'}">`;
+            addEditActions(row, () => onSave(savingsEditPayload(row)), onCancel);
         }
 
-        function renderAccounts(accounts) {
-            const tbody = document.querySelector('#accounts tbody');
-            tbody.innerHTML = '';
-            for (const a of accounts) {
-                const row = tbody.insertRow();
-                if (a.balance_pence < 0) row.classList.add('negative');
-                row.insertCell().textContent = a.name;
-                const bal = row.insertCell();
-                bal.className = 'num balance';
-                bal.textContent = gbp(a.balance_pence);
-                const rate = row.insertCell();
-                rate.className = 'num';
-                rate.textContent = (a.annual_rate_bp / 100).toFixed(2) + '%';
-                const alloc = row.insertCell();
-                alloc.className = 'num';
-                alloc.textContent = gbp(a.monthly_allocation_pence);
-                const actions = row.insertCell();
-                actions.className = 'row-actions';
-                actions.innerHTML = '<button class="btn btn-ghost">Edit</button> <button class="btn btn-danger">Delete</button>';
-                const [editBtn, deleteBtn] = actions.querySelectorAll('button');
-                editBtn.addEventListener('click', () => startEditAccount(a, row));
-                deleteBtn.addEventListener('click', () => deleteAccount(a));
-            }
+        function renderCreditCardEditRow(tbody, account, onSave, onCancel) {
+            const row = tbody.insertRow();
+            row.className = 'editing';
+            row.insertCell().innerHTML =
+                `<input class="cell-input" type="text" value="${account?.name ?? ''}" placeholder="Card name">`;
+            const bal = row.insertCell();
+            bal.className = 'num';
+            bal.innerHTML = `<input class="cell-input num" type="number" step="0.01" value="${account ? (account.balance_pence / 100).toFixed(2) : ''}">`;
+            addEditActions(row, () => onSave(creditCardEditPayload(row)), onCancel);
         }
 
-        function startEditAccount(account, existingRow) {
+        function startEditAccount(account, existingRow, renderEditRowFn) {
             const tbody = existingRow.parentElement;
             const insertBefore = existingRow.nextSibling;
             existingRow.remove();
-            const tempTbody = document.createElement('tbody');
-            renderAccountEditRow(
-                tempTbody,
+            const tmp = document.createElement('tbody');
+            renderEditRowFn(
+                tmp,
                 account,
-                async (payload) => {
-                    await apiPut(`/accounts/${account.id}`, payload);
-                    await refresh();
-                },
+                async (payload) => { await apiPut(`/accounts/${account.id}`, payload); refresh(); },
                 () => refresh()
             );
-            tbody.insertBefore(tempTbody.firstElementChild, insertBefore);
-        }
-
-        function startAddAccount() {
-            const tbody = document.querySelector('#accounts tbody');
-            renderAccountEditRow(
-                tbody,
-                null,
-                async (payload) => {
-                    await apiPost('/accounts', payload);
-                    await refresh();
-                },
-                () => refresh()
-            );
+            tbody.insertBefore(tmp.firstElementChild, insertBefore);
         }
 
         async function deleteAccount(account) {
-            if (!confirm(`Delete account "${account.name}"?`)) return;
+            const noun = account.kind === 'credit_card' ? 'credit card' : 'account';
+            if (!confirm(`Delete ${noun} "${account.name}"?`)) return;
             await apiDelete(`/accounts/${account.id}`);
-            await refresh();
+            refresh();
+        }
+
+        function renderSavingsRow(tbody, account) {
+            const row = tbody.insertRow();
+            row.insertCell().textContent = account.name;
+            const bal = row.insertCell();
+            bal.className = 'num balance';
+            bal.textContent = gbp(account.balance_pence);
+            const rate = row.insertCell();
+            rate.className = 'num';
+            rate.textContent = (account.annual_rate_bp / 100).toFixed(2) + '%';
+            const alloc = row.insertCell();
+            alloc.className = 'num';
+            alloc.textContent = gbp(account.monthly_allocation_pence);
+            addRowActions(
+                row,
+                () => startEditAccount(account, row, renderSavingsEditRow),
+                () => deleteAccount(account)
+            );
+        }
+
+        function renderCreditCardRow(tbody, account) {
+            const row = tbody.insertRow();
+            row.classList.add('negative');
+            row.insertCell().textContent = account.name;
+            const bal = row.insertCell();
+            bal.className = 'num balance';
+            bal.textContent = gbp(account.balance_pence);
+            addRowActions(
+                row,
+                () => startEditAccount(account, row, renderCreditCardEditRow),
+                () => deleteAccount(account)
+            );
+        }
+
+        function renderAccounts(accounts) {
+            const savingsBody = document.querySelector('#savings-accounts tbody');
+            const cardsBody = document.querySelector('#credit-cards tbody');
+            savingsBody.innerHTML = '';
+            cardsBody.innerHTML = '';
+            for (const a of accounts) {
+                if (a.kind === 'credit_card') {
+                    renderCreditCardRow(cardsBody, a);
+                } else {
+                    renderSavingsRow(savingsBody, a);
+                }
+            }
+        }
+
+        function startAddSavings() {
+            const tbody = document.querySelector('#savings-accounts tbody');
+            renderSavingsEditRow(
+                tbody, null,
+                async (payload) => { await apiPost('/accounts', payload); refresh(); },
+                () => refresh()
+            );
+        }
+
+        function startAddCreditCard() {
+            const tbody = document.querySelector('#credit-cards tbody');
+            renderCreditCardEditRow(
+                tbody, null,
+                async (payload) => { await apiPost('/accounts', payload); refresh(); },
+                () => refresh()
+            );
         }
 
         async function apiPost(url, body) {
@@ -739,7 +798,7 @@
                 const el = document.getElementById(id);
                 if (id === 'summary') el.innerHTML = '';
             }
-            for (const id of ['income', 'accounts', 'monthly-expenses', 'yearly-expenses']) {
+            for (const id of ['income', 'savings-accounts', 'credit-cards', 'monthly-expenses', 'yearly-expenses']) {
                 document.querySelector(`#${id} tbody`).innerHTML = '';
             }
         }
@@ -779,7 +838,8 @@
         if (['overview', 'accounts', 'income', 'expenses'].includes(initialTab)) {
             activateTab(initialTab);
         }
-        document.getElementById('add-account').addEventListener('click', startAddAccount);
+        document.getElementById('add-savings').addEventListener('click', startAddSavings);
+        document.getElementById('add-credit-card').addEventListener('click', startAddCreditCard);
         document.getElementById('add-income').addEventListener('click', startAddIncome);
         document.getElementById('add-monthly-expense').addEventListener('click', () => startAddExpense('monthly'));
         document.getElementById('add-yearly-expense').addEventListener('click', () => startAddExpense('yearly'));
