@@ -1,3 +1,15 @@
+from dataclasses import dataclass
+from typing import Iterable
+
+
+@dataclass(frozen=True)
+class Account:
+    name: str
+    balance_pence: int
+    annual_rate_bp: int = 0
+    monthly_allocation_pence: int = 0
+
+
 def project_balance(
     principal_pence: int,
     annual_rate_bp: int,
@@ -13,3 +25,16 @@ def project_balance(
         future_contributions = monthly_pence * (growth - 1) / monthly_rate
         result = round(future_principal + future_contributions)
     return result
+
+
+def project_total(accounts: Iterable[Account], months: int) -> int:
+    total = sum(
+        project_balance(
+            principal_pence=account.balance_pence,
+            annual_rate_bp=account.annual_rate_bp,
+            monthly_pence=account.monthly_allocation_pence,
+            months=months,
+        )
+        for account in accounts
+    )
+    return total
