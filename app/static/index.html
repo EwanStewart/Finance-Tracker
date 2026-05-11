@@ -248,7 +248,6 @@
             header .wrap { padding: 0 1rem; }
             header h1 { font-size: 1.05rem; }
             .card { padding: 1rem 1.1rem; margin-bottom: 1rem; }
-            td, th { padding: 0.7rem 0.4rem; white-space: nowrap; }
             .summary { gap: 0.75rem; }
             .summary .value { font-size: 1.2rem; }
             .horizons { gap: 0.6rem; margin-bottom: 1.25rem; }
@@ -261,6 +260,48 @@
             .row-actions .btn { min-height: 36px; padding: 0.45rem 0.75rem; }
             .card-head { flex-wrap: wrap; gap: 0.5rem; }
             .cell-input { font-size: 16px; min-width: 0; }
+            /* Stacked row-cards: each table row becomes a labelled vertical list */
+            .table-wrap { overflow-x: visible; }
+            .table-wrap > table { width: 100%; min-width: 0; display: block; }
+            .table-wrap > table > thead { display: none; }
+            .table-wrap > table > tbody { display: block; }
+            .table-wrap > table > tbody > tr {
+                display: block;
+                border: 1px solid var(--rbs-line);
+                border-radius: 6px;
+                padding: 0.7rem 0.85rem;
+                margin-bottom: 0.6rem;
+                background: var(--rbs-bg);
+            }
+            .table-wrap > table > tbody > tr:last-child { margin-bottom: 0; }
+            .table-wrap > table > tbody > tr.editing { background: #fff; }
+            .table-wrap > table > tbody > tr > td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 0.75rem;
+                padding: 0.35rem 0;
+                border-bottom: 1px dashed var(--rbs-line);
+                white-space: normal;
+                text-align: left;
+            }
+            .table-wrap > table > tbody > tr > td:last-child { border-bottom: 0; }
+            .table-wrap > table > tbody > tr > td.num { text-align: right; }
+            .table-wrap > table > tbody > tr > td::before {
+                content: attr(data-label);
+                color: var(--rbs-muted);
+                font-size: 0.72rem;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                font-weight: 600;
+                flex-shrink: 0;
+            }
+            .table-wrap > table > tbody > tr > td:not([data-label])::before { content: none; }
+            .table-wrap > table > tbody > tr > td.row-actions {
+                justify-content: flex-end;
+                padding-top: 0.6rem;
+            }
+            .table-wrap > table > tbody > tr > td .cell-input { width: auto; flex: 1; }
         }
     </style>
 </head>
@@ -491,11 +532,8 @@
         function renderIncomeEditRow(tbody, source, onSave, onCancel) {
             const row = tbody.insertRow();
             row.className = 'editing';
-            row.insertCell().innerHTML =
-                `<input class="cell-input" type="text" value="${source?.name ?? ''}" placeholder="Source">`;
-            const amt = row.insertCell();
-            amt.className = 'num';
-            amt.innerHTML = `<input class="cell-input num" type="number" step="0.01" value="${source ? (source.monthly_amount_pence / 100).toFixed(2) : ''}">`;
+            _labelledInputCell(row, 'Source', false, source?.name ?? '', 'Source');
+            _labelledInputCell(row, 'Monthly', true, source ? (source.monthly_amount_pence / 100).toFixed(2) : '');
             addEditActions(
                 row,
                 () => {
@@ -514,10 +552,8 @@
             tbody.innerHTML = '';
             for (const s of sources) {
                 const row = tbody.insertRow();
-                row.insertCell().textContent = s.name;
-                const amt = row.insertCell();
-                amt.className = 'num';
-                amt.textContent = gbp(s.monthly_amount_pence);
+                _labelledCell(row, 'Source', false, s.name);
+                _labelledCell(row, 'Monthly', true, gbp(s.monthly_amount_pence));
                 addRowActions(
                     row,
                     () => {
@@ -553,13 +589,13 @@
         function renderExpenseEditRow(tbody, expense, cadence, onSave, onCancel) {
             const row = tbody.insertRow();
             row.className = 'editing';
-            row.insertCell().innerHTML =
-                `<input class="cell-input" type="text" value="${expense?.name ?? ''}" placeholder="Category">`;
-            const amt = row.insertCell();
-            amt.className = 'num';
-            amt.innerHTML = `<input class="cell-input num" type="number" step="0.01" value="${expense ? (expense.amount_pence / 100).toFixed(2) : ''}">`;
+            _labelledInputCell(row, 'Category', false, expense?.name ?? '', 'Category');
+            _labelledInputCell(row, 'Amount', true, expense ? (expense.amount_pence / 100).toFixed(2) : '');
             if (cadence === 'yearly') {
-                row.insertCell().textContent = '';
+                const placeholder = row.insertCell();
+                placeholder.setAttribute('data-label', 'Monthly equivalent');
+                placeholder.className = 'num';
+                placeholder.textContent = '';
             }
             addEditActions(
                 row,
@@ -578,14 +614,10 @@
 
         function renderExpenseRow(tbody, expense) {
             const row = tbody.insertRow();
-            row.insertCell().textContent = expense.name;
-            const amt = row.insertCell();
-            amt.className = 'num';
-            amt.textContent = gbp(expense.amount_pence);
+            _labelledCell(row, 'Category', false, expense.name);
+            _labelledCell(row, 'Amount', true, gbp(expense.amount_pence));
             if (expense.cadence === 'yearly') {
-                const equiv = row.insertCell();
-                equiv.className = 'num';
-                equiv.textContent = gbp(Math.round(expense.amount_pence / 12));
+                _labelledCell(row, 'Monthly equivalent', true, gbp(Math.round(expense.amount_pence / 12)));
             }
             addRowActions(
                 row,
@@ -686,31 +718,32 @@
             };
         }
 
+        function _labelledInputCell(row, label, isNum, value, placeholder) {
+            const cell = row.insertCell();
+            cell.setAttribute('data-label', label);
+            if (isNum) cell.className = 'num';
+            const cls = isNum ? 'cell-input num' : 'cell-input';
+            const type = isNum ? 'number' : 'text';
+            const step = isNum ? 'step="0.01"' : '';
+            const ph = placeholder ? `placeholder="${placeholder}"` : '';
+            cell.innerHTML = `<input class="${cls}" type="${type}" ${step} value="${value ?? ''}" ${ph}>`;
+        }
+
         function renderSavingsEditRow(tbody, account, onSave, onCancel) {
             const row = tbody.insertRow();
             row.className = 'editing';
-            row.insertCell().innerHTML =
-                `<input class="cell-input" type="text" value="${account?.name ?? ''}" placeholder="Savings name">`;
-            const bal = row.insertCell();
-            bal.className = 'num';
-            bal.innerHTML = `<input class="cell-input num" type="number" step="0.01" value="${account ? (account.balance_pence / 100).toFixed(2) : ''}">`;
-            const rate = row.insertCell();
-            rate.className = 'num';
-            rate.innerHTML = `<input class="cell-input num" type="number" step="0.01" value="${account ? (account.annual_rate_bp / 100).toFixed(2) : '0'}">`;
-            const alloc = row.insertCell();
-            alloc.className = 'num';
-            alloc.innerHTML = `<input class="cell-input num" type="number" step="0.01" value="${account ? (account.monthly_allocation_pence / 100).toFixed(2) : '0'}">`;
+            _labelledInputCell(row, 'Name', false, account?.name ?? '', 'Savings name');
+            _labelledInputCell(row, 'Balance', true, account ? (account.balance_pence / 100).toFixed(2) : '');
+            _labelledInputCell(row, 'Annual rate', true, account ? (account.annual_rate_bp / 100).toFixed(2) : '0');
+            _labelledInputCell(row, 'Monthly allocation', true, account ? (account.monthly_allocation_pence / 100).toFixed(2) : '0');
             addEditActions(row, () => onSave(savingsEditPayload(row)), onCancel);
         }
 
         function renderCreditCardEditRow(tbody, account, onSave, onCancel) {
             const row = tbody.insertRow();
             row.className = 'editing';
-            row.insertCell().innerHTML =
-                `<input class="cell-input" type="text" value="${account?.name ?? ''}" placeholder="Card name">`;
-            const bal = row.insertCell();
-            bal.className = 'num';
-            bal.innerHTML = `<input class="cell-input num" type="number" step="0.01" value="${account ? (account.balance_pence / 100).toFixed(2) : ''}">`;
+            _labelledInputCell(row, 'Name', false, account?.name ?? '', 'Card name');
+            _labelledInputCell(row, 'Balance', true, account ? (account.balance_pence / 100).toFixed(2) : '');
             addEditActions(row, () => onSave(creditCardEditPayload(row)), onCancel);
         }
 
@@ -735,18 +768,20 @@
             refresh();
         }
 
+        function _labelledCell(row, label, isNum, text, extraClass) {
+            const cell = row.insertCell();
+            cell.setAttribute('data-label', label);
+            cell.className = (isNum ? 'num ' : '') + (extraClass || '');
+            cell.textContent = text;
+            return cell;
+        }
+
         function renderSavingsRow(tbody, account) {
             const row = tbody.insertRow();
-            row.insertCell().textContent = account.name;
-            const bal = row.insertCell();
-            bal.className = 'num balance';
-            bal.textContent = gbp(account.balance_pence);
-            const rate = row.insertCell();
-            rate.className = 'num';
-            rate.textContent = (account.annual_rate_bp / 100).toFixed(2) + '%';
-            const alloc = row.insertCell();
-            alloc.className = 'num';
-            alloc.textContent = gbp(account.monthly_allocation_pence);
+            _labelledCell(row, 'Name', false, account.name);
+            _labelledCell(row, 'Balance', true, gbp(account.balance_pence), 'balance');
+            _labelledCell(row, 'Annual rate', true, (account.annual_rate_bp / 100).toFixed(2) + '%');
+            _labelledCell(row, 'Monthly allocation', true, gbp(account.monthly_allocation_pence));
             addRowActions(
                 row,
                 () => startEditAccount(account, row, renderSavingsEditRow),
@@ -757,10 +792,8 @@
         function renderCreditCardRow(tbody, account) {
             const row = tbody.insertRow();
             row.classList.add('negative');
-            row.insertCell().textContent = account.name;
-            const bal = row.insertCell();
-            bal.className = 'num balance';
-            bal.textContent = gbp(account.balance_pence);
+            _labelledCell(row, 'Name', false, account.name);
+            _labelledCell(row, 'Balance', true, gbp(account.balance_pence), 'balance');
             addRowActions(
                 row,
                 () => startEditAccount(account, row, renderCreditCardEditRow),
