@@ -1,8 +1,8 @@
 from fastapi.testclient import TestClient
 
-from app.db import connect, insert_account
+from app.db import connect, insert_account, insert_expense, insert_income_source
 from app.main import app, get_db
-from app.projections import Account
+from app.projections import Account, Expense, IncomeSource
 
 
 def _client_with_db(conn):
@@ -147,3 +147,72 @@ def test_delete_account_returns_404_when_missing():
     response = client.delete("/accounts/99")
 
     assert response.status_code == 404
+
+
+def test_income_crud_round_trip():
+    conn = connect(":memory:")
+    client = _client_with_db(conn)
+
+    created = client.post(
+        "/income", json={"name": "Salary", "monthly_amount_pence": 2_954_00}
+    )
+    assert created.status_code == 201
+    new_id = created.json()["id"]
+
+    listed = client.get("/income").json()
+    assert listed == [
+        {"id": new_id, "name": "Salary", "monthly_amount_pence": 2_954_00}
+    ]
+
+    updated = client.put(
+        f"/income/{new_id}",
+        json={"name": "Salary", "monthly_amount_pence": 3_100_00},
+    )
+    assert updated.json()["monthly_amount_pence"] == 3_100_00
+
+    deleted = client.delete(f"/income/{new_id}")
+    assert deleted.status_code == 204
+    assert client.get("/income").json() == []
+
+
+def test_expense_crud_round_trip():
+    conn = connect(":memory:")
+    client = _client_with_db(conn)
+
+    created = client.post(
+        "/expenses",
+        json={"name": "Rent", "amount_pence": 200_00, "cadence": "monthly"},
+    )
+    assert created.status_code == 201
+    new_id = created.json()["id"]
+
+    updated = client.put(
+        f"/expenses/{new_id}",
+        json={"name": "Rent", "amount_pence": 250_00, "cadence": "monthly"},
+    )
+    assert updated.json()["amount_pence"] == 250_00
+
+    deleted = client.delete(f"/expenses/{new_id}")
+    assert deleted.status_code == 204
+
+
+def test_get_summary_returns_available_to_save():
+    conn = connect(":memory:")
+    insert_income_source(
+        conn, IncomeSource(name="Salary", monthly_amount_pence=2_954_00)
+    )
+    insert_expense(conn, Expense(name="Rent", amount_pence=200_00, cadence="monthly"))
+    insert_expense(
+        conn, Expense(name="Car Insurance", amount_pence=900_00, cadence="yearly")
+    )
+    client = _client_with_db(conn)
+
+    response = client.get("/summary")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["income_pence"] == 2_954_00
+    assert body["monthly_expense_pence"] == 200_00
+    assert body["yearly_expense_pence"] == 900_00
+    assert body["yearly_monthly_equivalent_pence"] == 75_00
+    assert body["available_to_save_pence"] == 2_954_00 - 200_00 - 75_00

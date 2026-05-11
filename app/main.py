@@ -1,6 +1,6 @@
 from dataclasses import asdict
 from pathlib import Path
-from typing import Generator
+from typing import Generator, Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from fastapi.responses import FileResponse
@@ -9,12 +9,28 @@ from pydantic import BaseModel
 from app.db import (
     connect,
     delete_account,
+    delete_expense,
+    delete_income_source,
     get_account,
+    get_expense,
+    get_income_source,
     insert_account,
+    insert_expense,
+    insert_income_source,
     list_accounts,
+    list_expenses,
+    list_income_sources,
     update_account,
+    update_expense,
+    update_income_source,
 )
-from app.projections import Account, project_total
+from app.projections import (
+    Account,
+    Expense,
+    IncomeSource,
+    monthly_summary,
+    project_total,
+)
 
 
 class AccountIn(BaseModel):
@@ -22,6 +38,17 @@ class AccountIn(BaseModel):
     balance_pence: int
     annual_rate_bp: int = 0
     monthly_allocation_pence: int = 0
+
+
+class IncomeIn(BaseModel):
+    name: str
+    monthly_amount_pence: int
+
+
+class ExpenseIn(BaseModel):
+    name: str
+    amount_pence: int
+    cadence: Literal["monthly", "yearly"]
 
 
 DEFAULT_DB_PATH = Path("data/finance.db")
@@ -91,6 +118,69 @@ def remove_account(account_id: int, db=Depends(get_db)) -> Response:
     if not deleted:
         raise HTTPException(status_code=404, detail="account not found")
     return Response(status_code=204)
+
+
+@app.get("/income")
+def get_income(db=Depends(get_db)) -> list[dict]:
+    return [asdict(source) for source in list_income_sources(db)]
+
+
+@app.post("/income", status_code=201)
+def create_income(payload: IncomeIn, db=Depends(get_db)) -> dict:
+    source = IncomeSource(**payload.model_dump())
+    source_id = insert_income_source(db, source)
+    return asdict(get_income_source(db, source_id))
+
+
+@app.put("/income/{source_id}")
+def replace_income(source_id: int, payload: IncomeIn, db=Depends(get_db)) -> dict:
+    source = IncomeSource(**payload.model_dump())
+    changed = update_income_source(db, source_id, source)
+    if not changed:
+        raise HTTPException(status_code=404, detail="income source not found")
+    return asdict(get_income_source(db, source_id))
+
+
+@app.delete("/income/{source_id}", status_code=204)
+def remove_income(source_id: int, db=Depends(get_db)) -> Response:
+    deleted = delete_income_source(db, source_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="income source not found")
+    return Response(status_code=204)
+
+
+@app.get("/expenses")
+def get_expenses(db=Depends(get_db)) -> list[dict]:
+    return [asdict(expense) for expense in list_expenses(db)]
+
+
+@app.post("/expenses", status_code=201)
+def create_expense(payload: ExpenseIn, db=Depends(get_db)) -> dict:
+    expense = Expense(**payload.model_dump())
+    expense_id = insert_expense(db, expense)
+    return asdict(get_expense(db, expense_id))
+
+
+@app.put("/expenses/{expense_id}")
+def replace_expense(expense_id: int, payload: ExpenseIn, db=Depends(get_db)) -> dict:
+    expense = Expense(**payload.model_dump())
+    changed = update_expense(db, expense_id, expense)
+    if not changed:
+        raise HTTPException(status_code=404, detail="expense not found")
+    return asdict(get_expense(db, expense_id))
+
+
+@app.delete("/expenses/{expense_id}", status_code=204)
+def remove_expense(expense_id: int, db=Depends(get_db)) -> Response:
+    deleted = delete_expense(db, expense_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="expense not found")
+    return Response(status_code=204)
+
+
+@app.get("/summary")
+def get_summary(db=Depends(get_db)) -> dict:
+    return monthly_summary(list_income_sources(db), list_expenses(db))
 
 
 def _parse_horizons(value) -> list[int]:
