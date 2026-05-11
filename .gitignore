@@ -216,3 +216,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Personal finance data — never commit
+data/
+*.xlsx
+*.xls
+*.db
+*.sqlite
+*.sqlite3
+
