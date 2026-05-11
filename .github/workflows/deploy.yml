@@ -1,0 +1,16 @@
+name: Deploy to fipi
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-fipi
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, fipi]
+    steps:
+      - name: Pull latest and restart service
+        run: /opt/finance-tracker/deploy/update.sh
