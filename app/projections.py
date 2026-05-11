@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Iterable, Optional
 
 
 @dataclass(frozen=True)
@@ -8,6 +8,7 @@ class Account:
     balance_pence: int
     annual_rate_bp: int = 0
     monthly_allocation_pence: int = 0
+    id: Optional[int] = None
 
 
 def project_balance(

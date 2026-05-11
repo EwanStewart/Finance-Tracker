@@ -2,11 +2,27 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Generator
 
-from fastapi import Depends, FastAPI, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
-from app.db import connect, list_accounts
-from app.projections import project_total
+from app.db import (
+    connect,
+    delete_account,
+    get_account,
+    insert_account,
+    list_accounts,
+    update_account,
+)
+from app.projections import Account, project_total
+
+
+class AccountIn(BaseModel):
+    name: str
+    balance_pence: int
+    annual_rate_bp: int = 0
+    monthly_allocation_pence: int = 0
+
 
 DEFAULT_DB_PATH = Path("data/finance.db")
 DEFAULT_HORIZONS_MONTHS = [0, 1, 3, 6, 12, 24, 60]
@@ -51,6 +67,30 @@ def get_projections(
         for horizon in horizons
     ]
     return points
+
+
+@app.post("/accounts", status_code=201)
+def create_account(payload: AccountIn, db=Depends(get_db)) -> dict:
+    account = Account(**payload.model_dump())
+    account_id = insert_account(db, account)
+    return asdict(get_account(db, account_id))
+
+
+@app.put("/accounts/{account_id}")
+def replace_account(account_id: int, payload: AccountIn, db=Depends(get_db)) -> dict:
+    account = Account(**payload.model_dump())
+    changed = update_account(db, account_id, account)
+    if not changed:
+        raise HTTPException(status_code=404, detail="account not found")
+    return asdict(get_account(db, account_id))
+
+
+@app.delete("/accounts/{account_id}", status_code=204)
+def remove_account(account_id: int, db=Depends(get_db)) -> Response:
+    deleted = delete_account(db, account_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="account not found")
+    return Response(status_code=204)
 
 
 def _parse_horizons(value) -> list[int]:

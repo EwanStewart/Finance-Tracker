@@ -1,6 +1,6 @@
 import sqlite3
 from pathlib import Path
-from typing import Iterable, Union
+from typing import Iterable, Optional, Union
 
 from app.projections import Account
 
@@ -45,10 +45,41 @@ def insert_account(conn: sqlite3.Connection, account: Account) -> int:
 
 def list_accounts(conn: sqlite3.Connection) -> list[Account]:
     rows = conn.execute(
-        "SELECT name, balance_pence, annual_rate_bp, monthly_allocation_pence "
+        "SELECT id, name, balance_pence, annual_rate_bp, monthly_allocation_pence "
         "FROM accounts ORDER BY id"
     ).fetchall()
     return [Account(**dict(row)) for row in rows]
+
+
+def get_account(conn: sqlite3.Connection, account_id: int) -> Optional[Account]:
+    row = conn.execute(
+        "SELECT id, name, balance_pence, annual_rate_bp, monthly_allocation_pence "
+        "FROM accounts WHERE id = ?",
+        (account_id,),
+    ).fetchone()
+    return Account(**dict(row)) if row is not None else None
+
+
+def update_account(conn: sqlite3.Connection, account_id: int, account: Account) -> bool:
+    cursor = conn.execute(
+        "UPDATE accounts SET name = ?, balance_pence = ?, annual_rate_bp = ?, "
+        "monthly_allocation_pence = ? WHERE id = ?",
+        (
+            account.name,
+            account.balance_pence,
+            account.annual_rate_bp,
+            account.monthly_allocation_pence,
+            account_id,
+        ),
+    )
+    conn.commit()
+    return cursor.rowcount > 0
+
+
+def delete_account(conn: sqlite3.Connection, account_id: int) -> bool:
+    cursor = conn.execute("DELETE FROM accounts WHERE id = ?", (account_id,))
+    conn.commit()
+    return cursor.rowcount > 0
 
 
 def replace_accounts(conn: sqlite3.Connection, accounts: Iterable[Account]) -> None:
