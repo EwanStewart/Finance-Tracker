@@ -57,6 +57,7 @@ def _read_credit_cards(ws) -> list[Account]:
                 Account(
                     name=str(name),
                     balance_pence=_to_pence(ws.cell(row=row, column=2).value),
+                    kind="credit_card",
                 )
             )
     return accounts

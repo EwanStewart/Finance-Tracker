@@ -4,12 +4,16 @@ from typing import Iterable, Literal, Optional
 Cadence = Literal["monthly", "yearly"]
 
 
+AccountKind = Literal["savings", "credit_card"]
+
+
 @dataclass(frozen=True)
 class Account:
     name: str
     balance_pence: int
     annual_rate_bp: int = 0
     monthly_allocation_pence: int = 0
+    kind: AccountKind = "savings"
     id: Optional[int] = None
 
 

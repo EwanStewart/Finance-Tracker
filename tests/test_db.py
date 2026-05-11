@@ -1,3 +1,4 @@
+import sqlite3
 from dataclasses import replace
 
 from app.db import (
@@ -100,3 +101,42 @@ def test_delete_account_returns_false_when_missing():
     conn = connect(":memory:")
 
     assert delete_account(conn, 99) is False
+
+
+def test_account_kind_defaults_to_savings():
+    conn = connect(":memory:")
+    account_id = insert_account(conn, Account(name="ISA", balance_pence=100_00))
+
+    assert get_account(conn, account_id).kind == "savings"
+
+
+def test_account_kind_credit_card_round_trips():
+    conn = connect(":memory:")
+    account_id = insert_account(
+        conn, Account(name="Visa", balance_pence=-100_00, kind="credit_card")
+    )
+
+    assert get_account(conn, account_id).kind == "credit_card"
+
+
+def test_kind_migration_adds_column_to_legacy_database(tmp_path):
+    db = tmp_path / "legacy.db"
+    raw = sqlite3.connect(db)
+    raw.executescript(
+        "CREATE TABLE accounts ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "name TEXT NOT NULL,"
+        "balance_pence INTEGER NOT NULL,"
+        "annual_rate_bp INTEGER NOT NULL DEFAULT 0,"
+        "monthly_allocation_pence INTEGER NOT NULL DEFAULT 0"
+        ");"
+        "INSERT INTO accounts (name, balance_pence) VALUES ('Pre-migration', 100);"
+    )
+    raw.commit()
+    raw.close()
+
+    conn = connect(db)
+
+    accounts = list_accounts(conn)
+    assert len(accounts) == 1
+    assert accounts[0].kind == "savings"

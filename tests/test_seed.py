@@ -83,6 +83,7 @@ def test_read_accounts_parses_savings_and_credit_cards(tmp_path):
             balance_pence=-25_000,
             annual_rate_bp=0,
             monthly_allocation_pence=0,
+            kind="credit_card",
         ),
     ]
 
@@ -126,6 +127,20 @@ def test_read_expenses_parses_monthly_and_yearly(tmp_path):
         ("Car Insurance", 700_00),
         ("Road Tax", 200_00),
     }
+
+
+def test_seeded_credit_cards_have_kind_credit_card(tmp_path):
+    xlsx = tmp_path / "fixture.xlsx"
+    _write_inputs_sheet(xlsx)
+    db_path = tmp_path / "test.db"
+    seed_database(xlsx, db_path)
+
+    conn = connect(db_path)
+    accounts = list_accounts(conn)
+
+    by_kind = {a.kind for a in accounts}
+    assert by_kind == {"savings", "credit_card"}
+    assert all(a.kind == "credit_card" for a in accounts if a.balance_pence < 0)
 
 
 def test_seed_database_populates_income_and_expenses(tmp_path):

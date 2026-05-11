@@ -38,6 +38,7 @@ class AccountIn(BaseModel):
     balance_pence: int
     annual_rate_bp: int = 0
     monthly_allocation_pence: int = 0
+    kind: Literal["savings", "credit_card"] = "savings"
 
 
 class IncomeIn(BaseModel):

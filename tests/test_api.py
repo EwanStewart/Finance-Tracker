@@ -43,6 +43,7 @@ def test_get_accounts_returns_inserted_accounts():
             "balance_pence": 2_993_965,
             "annual_rate_bp": 345,
             "monthly_allocation_pence": 0,
+            "kind": "savings",
             "id": 1,
         }
     ]
