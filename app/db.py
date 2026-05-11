@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS accounts (
 
 
 def connect(path: Union[str, Path]) -> sqlite3.Connection:
-    conn = sqlite3.connect(str(path))
+    conn = sqlite3.connect(str(path), check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
     return conn
