@@ -1,4 +1,11 @@
-from app.projections import Account, project_balance, project_total
+from app.projections import (
+    Account,
+    Expense,
+    IncomeSource,
+    monthly_summary,
+    project_balance,
+    project_total,
+)
 
 
 def test_project_balance_with_zero_rate_is_linear():
@@ -77,3 +84,33 @@ def test_project_total_handles_negative_balances():
     result = project_total(accounts, months=12)
 
     assert result == 400_00
+
+
+def test_monthly_summary_is_zero_when_no_data():
+    result = monthly_summary([], [])
+
+    assert result == {
+        "income_pence": 0,
+        "monthly_expense_pence": 0,
+        "yearly_expense_pence": 0,
+        "yearly_monthly_equivalent_pence": 0,
+        "available_to_save_pence": 0,
+    }
+
+
+def test_monthly_summary_subtracts_monthly_and_yearly_expenses():
+    income = [IncomeSource(name="Salary", monthly_amount_pence=2_954_00)]
+    expenses = [
+        Expense(name="Rent", amount_pence=200_00, cadence="monthly"),
+        Expense(name="Phone", amount_pence=10_90, cadence="monthly"),
+        Expense(name="Car Insurance", amount_pence=700_00, cadence="yearly"),
+        Expense(name="Road Tax", amount_pence=200_00, cadence="yearly"),
+    ]
+
+    result = monthly_summary(income, expenses)
+
+    assert result["income_pence"] == 2_954_00
+    assert result["monthly_expense_pence"] == 210_90
+    assert result["yearly_expense_pence"] == 900_00
+    assert result["yearly_monthly_equivalent_pence"] == round(900_00 / 12)
+    assert result["available_to_save_pence"] == 2_954_00 - 210_90 - round(900_00 / 12)

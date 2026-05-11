@@ -56,3 +56,27 @@ def project_total(accounts: Iterable[Account], months: int) -> int:
         for account in accounts
     )
     return total
+
+
+def monthly_summary(
+    income_sources: Iterable[IncomeSource], expenses: Iterable[Expense]
+) -> dict:
+    income_pence = sum(source.monthly_amount_pence for source in income_sources)
+    expense_list = list(expenses)
+    monthly_expense_pence = sum(
+        expense.amount_pence for expense in expense_list if expense.cadence == "monthly"
+    )
+    yearly_expense_pence = sum(
+        expense.amount_pence for expense in expense_list if expense.cadence == "yearly"
+    )
+    yearly_monthly_equivalent_pence = round(yearly_expense_pence / 12)
+    available_to_save_pence = (
+        income_pence - monthly_expense_pence - yearly_monthly_equivalent_pence
+    )
+    return {
+        "income_pence": income_pence,
+        "monthly_expense_pence": monthly_expense_pence,
+        "yearly_expense_pence": yearly_expense_pence,
+        "yearly_monthly_equivalent_pence": yearly_monthly_equivalent_pence,
+        "available_to_save_pence": available_to_save_pence,
+    }
