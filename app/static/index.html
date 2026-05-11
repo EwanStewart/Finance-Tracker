@@ -5,53 +5,189 @@
     <title>Finance Tracker</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: system-ui, sans-serif; max-width: 960px; margin: 2em auto; padding: 0 1em; color: #222; }
-        h1 { font-size: 1.4em; margin-bottom: 0.2em; }
-        h2 { font-size: 1.1em; margin-top: 2em; }
-        .summary { color: #555; margin-bottom: 1.5em; }
+        :root {
+            --rbs-navy: #0a2240;
+            --rbs-navy-deep: #061731;
+            --rbs-purple: #5a287d;
+            --rbs-purple-fade: rgba(90, 40, 125, 0.12);
+            --rbs-text: #1a1a1a;
+            --rbs-muted: #5f6770;
+            --rbs-line: #e3e6ea;
+            --rbs-bg: #f5f6f8;
+            --rbs-card: #ffffff;
+            --rbs-negative: #b8002e;
+        }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                         "Helvetica Neue", Arial, sans-serif;
+            background: var(--rbs-bg);
+            color: var(--rbs-text);
+            line-height: 1.5;
+        }
+        header {
+            background: var(--rbs-navy);
+            color: #ffffff;
+            padding: 1.1rem 0;
+            border-bottom: 4px solid var(--rbs-purple);
+        }
+        header .wrap {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.9rem;
+        }
+        header .mark {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--rbs-purple);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -0.5px;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 1.15rem;
+            font-weight: 600;
+            letter-spacing: 0.2px;
+        }
+        main {
+            max-width: 960px;
+            margin: 2rem auto;
+            padding: 0 1.5rem 3rem;
+        }
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .summary .tile {
+            background: var(--rbs-card);
+            border: 1px solid var(--rbs-line);
+            border-radius: 8px;
+            padding: 1rem 1.1rem;
+        }
+        .summary .label {
+            color: var(--rbs-muted);
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.3rem;
+        }
+        .summary .value {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--rbs-navy);
+            font-variant-numeric: tabular-nums;
+        }
+        .card {
+            background: var(--rbs-card);
+            border: 1px solid var(--rbs-line);
+            border-radius: 8px;
+            padding: 1.2rem 1.4rem;
+            margin-bottom: 1.5rem;
+        }
+        .card h2 {
+            margin: 0 0 1rem;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--rbs-navy);
+            letter-spacing: 0.3px;
+        }
         canvas { max-width: 100%; }
-        table { border-collapse: collapse; margin-top: 1em; width: 100%; }
-        th, td { padding: 0.5em 0.8em; text-align: left; border-bottom: 1px solid #eee; }
-        td.num { text-align: right; font-variant-numeric: tabular-nums; }
-        th.num { text-align: right; }
-        tr.negative td.num { color: #b00; }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 0.95rem;
+        }
+        th, td {
+            padding: 0.65rem 0.4rem;
+            text-align: left;
+            border-bottom: 1px solid var(--rbs-line);
+        }
+        th {
+            color: var(--rbs-muted);
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            font-weight: 600;
+        }
+        td.num, th.num {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+        tr.negative td.num.balance { color: var(--rbs-negative); }
+        tbody tr:last-child td { border-bottom: 0; }
     </style>
 </head>
 <body>
-    <h1>Finance Tracker</h1>
-    <div class="summary" id="summary"></div>
-    <canvas id="chart" height="120"></canvas>
-    <h2>Accounts</h2>
-    <table id="accounts">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th class="num">Balance</th>
-                <th class="num">Annual rate</th>
-                <th class="num">Monthly allocation</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
+    <header>
+        <div class="wrap">
+            <div class="mark">F</div>
+            <h1>Finance Tracker</h1>
+        </div>
+    </header>
+    <main>
+        <div class="summary" id="summary"></div>
+        <div class="card">
+            <h2>Projected net wealth</h2>
+            <canvas id="chart" height="120"></canvas>
+        </div>
+        <div class="card">
+            <h2>Accounts</h2>
+            <table id="accounts">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th class="num">Balance</th>
+                        <th class="num">Annual rate</th>
+                        <th class="num">Monthly allocation</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </main>
     <script>
         const gbp = (pence) => new Intl.NumberFormat('en-GB', {
             style: 'currency', currency: 'GBP'
         }).format(pence / 100);
+        const gbpShort = (pence) => new Intl.NumberFormat('en-GB', {
+            style: 'currency', currency: 'GBP', maximumFractionDigits: 0
+        }).format(pence / 100);
         const monthLabel = (m) => m === 0 ? 'Now' : (m < 12 ? `${m} mo` : `${m / 12} yr`);
 
-        async function init() {
-            const [projections, accounts] = await Promise.all([
-                fetch('/projections').then((r) => r.json()),
-                fetch('/accounts').then((r) => r.json()),
-            ]);
-
-            const today = projections.find((p) => p.months === 0);
-            const oneYear = projections.find((p) => p.months === 12);
-            if (today && oneYear) {
-                document.getElementById('summary').textContent =
-                    `Today: ${gbp(today.total_pence)} · One year: ${gbp(oneYear.total_pence)}`;
+        function renderSummary(projections) {
+            const find = (m) => projections.find((p) => p.months === m);
+            const tiles = [
+                { label: 'Today', point: find(0) },
+                { label: 'In 1 year', point: find(12) },
+                { label: 'In 5 years', point: find(60) },
+            ];
+            const root = document.getElementById('summary');
+            for (const { label, point } of tiles) {
+                if (!point) continue;
+                const tile = document.createElement('div');
+                tile.className = 'tile';
+                tile.innerHTML = `<div class="label">${label}</div>` +
+                    `<div class="value">${gbp(point.total_pence)}</div>`;
+                root.appendChild(tile);
             }
+        }
 
+        function renderChart(projections) {
+            const navy = getComputedStyle(document.documentElement)
+                .getPropertyValue('--rbs-purple').trim();
+            const fade = getComputedStyle(document.documentElement)
+                .getPropertyValue('--rbs-purple-fade').trim();
             new Chart(document.getElementById('chart'), {
                 type: 'line',
                 data: {
@@ -59,37 +195,53 @@
                     datasets: [{
                         label: 'Total net wealth',
                         data: projections.map((p) => p.total_pence / 100),
-                        borderColor: '#2563eb',
-                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                        borderColor: navy,
+                        backgroundColor: fade,
+                        pointBackgroundColor: navy,
                         fill: true,
-                        tension: 0.2,
+                        tension: 0.25,
+                        borderWidth: 2,
                     }],
                 },
                 options: {
+                    plugins: { legend: { display: false } },
                     scales: {
                         y: {
-                            ticks: {
-                                callback: (v) => new Intl.NumberFormat('en-GB', {
-                                    style: 'currency', currency: 'GBP', maximumFractionDigits: 0
-                                }).format(v),
-                            },
+                            grid: { color: '#eef0f3' },
+                            ticks: { callback: (v) => gbpShort(v * 100) },
                         },
+                        x: { grid: { display: false } },
                     },
-                    plugins: { legend: { display: false } },
                 },
             });
+        }
 
+        function renderAccounts(accounts) {
             const tbody = document.querySelector('#accounts tbody');
             for (const a of accounts) {
                 const row = tbody.insertRow();
                 if (a.balance_pence < 0) row.classList.add('negative');
                 row.insertCell().textContent = a.name;
-                const bal = row.insertCell(); bal.className = 'num'; bal.textContent = gbp(a.balance_pence);
-                const rate = row.insertCell(); rate.className = 'num';
+                const bal = row.insertCell();
+                bal.className = 'num balance';
+                bal.textContent = gbp(a.balance_pence);
+                const rate = row.insertCell();
+                rate.className = 'num';
                 rate.textContent = (a.annual_rate_bp / 100).toFixed(2) + '%';
-                const alloc = row.insertCell(); alloc.className = 'num';
+                const alloc = row.insertCell();
+                alloc.className = 'num';
                 alloc.textContent = gbp(a.monthly_allocation_pence);
             }
+        }
+
+        async function init() {
+            const [projections, accounts] = await Promise.all([
+                fetch('/projections').then((r) => r.json()),
+                fetch('/accounts').then((r) => r.json()),
+            ]);
+            renderSummary(projections);
+            renderChart(projections);
+            renderAccounts(accounts);
         }
         init();
     </script>
