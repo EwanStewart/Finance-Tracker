@@ -806,13 +806,14 @@
             const cardsBody = document.querySelector('#credit-cards tbody');
             savingsBody.innerHTML = '';
             cardsBody.innerHTML = '';
-            for (const a of accounts) {
-                if (a.kind === 'credit_card') {
-                    renderCreditCardRow(cardsBody, a);
-                } else {
-                    renderSavingsRow(savingsBody, a);
-                }
-            }
+            const savings = accounts
+                .filter((a) => a.kind !== 'credit_card')
+                .sort((a, b) => b.balance_pence - a.balance_pence);
+            const cards = accounts
+                .filter((a) => a.kind === 'credit_card')
+                .sort((a, b) => a.balance_pence - b.balance_pence);
+            for (const a of savings) renderSavingsRow(savingsBody, a);
+            for (const a of cards) renderCreditCardRow(cardsBody, a);
         }
 
         function startAddSavings() {
