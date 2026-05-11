@@ -40,18 +40,6 @@
             align-items: center;
             gap: 0.9rem;
         }
-        header .mark {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: var(--rbs-purple);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            color: #ffffff;
-            letter-spacing: -0.5px;
-        }
         header h1 {
             margin: 0;
             font-size: 1.15rem;
@@ -126,18 +114,6 @@
         }
         tr.negative td.num.balance { color: var(--rbs-negative); }
         tbody tr:last-child td { border-bottom: 0; }
-        .grid-2 {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-        .grid-2 .card { margin-bottom: 0; }
-        @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
-        #cashflow td { border-bottom: 1px solid var(--rbs-line); padding: 0.6rem 0.4rem; }
-        #cashflow td.num { text-align: right; font-variant-numeric: tabular-nums; }
-        #cashflow tr.total td { font-weight: 600; color: var(--rbs-navy); border-bottom: 0; }
-        #cashflow tr.outflow td.num { color: var(--rbs-negative); }
         .cadence-tag {
             display: inline-block;
             font-size: 0.72rem;
@@ -221,7 +197,6 @@
 <body>
     <header>
         <div class="wrap">
-            <div class="mark">F</div>
             <h1>Finance Tracker</h1>
         </div>
     </header>
@@ -238,10 +213,6 @@
             <div class="card">
                 <h2>Projected net wealth</h2>
                 <canvas id="chart" height="120"></canvas>
-            </div>
-            <div class="card">
-                <h2>Monthly cashflow</h2>
-                <table id="cashflow"><tbody></tbody></table>
             </div>
         </section>
 
@@ -288,14 +259,29 @@
         <section class="tab-panel" id="tab-expenses">
             <div class="card">
                 <div class="card-head">
-                    <h2>Expenses</h2>
-                    <button class="btn" id="add-expense">+ Add</button>
+                    <h2>Monthly expenses</h2>
+                    <button class="btn" id="add-monthly-expense">+ Add monthly</button>
                 </div>
-                <table id="expenses">
+                <table id="monthly-expenses">
                     <thead>
                         <tr>
                             <th>Category</th>
-                            <th>Cadence</th>
+                            <th class="num">Amount</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="card">
+                <div class="card-head">
+                    <h2>Yearly expenses</h2>
+                    <button class="btn" id="add-yearly-expense">+ Add yearly</button>
+                </div>
+                <table id="yearly-expenses">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
                             <th class="num">Amount</th>
                             <th class="num">Monthly equivalent</th>
                             <th></th>
@@ -332,24 +318,6 @@
                 tile.innerHTML = `<div class="label">${label}</div>` +
                     `<div class="value">${value}</div>`;
                 root.appendChild(tile);
-            }
-        }
-
-        function renderCashflow(summary) {
-            const tbody = document.querySelector('#cashflow tbody');
-            const rows = [
-                { label: 'Income', value: summary.income_pence, cls: '' },
-                { label: 'Monthly expenses', value: -summary.monthly_expense_pence, cls: 'outflow' },
-                { label: 'Yearly expenses (per month)', value: -summary.yearly_monthly_equivalent_pence, cls: 'outflow' },
-                { label: 'Available to save', value: summary.available_to_save_pence, cls: 'total' },
-            ];
-            for (const { label, value, cls } of rows) {
-                const row = tbody.insertRow();
-                if (cls) row.className = cls;
-                row.insertCell().textContent = label;
-                const cell = row.insertCell();
-                cell.className = 'num';
-                cell.textContent = gbp(value);
             }
         }
 
@@ -433,25 +401,21 @@
             );
         }
 
-        function renderExpenseEditRow(tbody, expense, onSave, onCancel) {
+        function renderExpenseEditRow(tbody, expense, cadence, onSave, onCancel) {
             const row = tbody.insertRow();
             row.className = 'editing';
             row.insertCell().innerHTML =
                 `<input class="cell-input" type="text" value="${expense?.name ?? ''}" placeholder="Category">`;
-            row.insertCell().innerHTML =
-                `<select class="cell-input">
-                    <option value="monthly" ${expense?.cadence === 'monthly' ? 'selected' : ''}>monthly</option>
-                    <option value="yearly" ${expense?.cadence === 'yearly' ? 'selected' : ''}>yearly</option>
-                </select>`;
             const amt = row.insertCell();
             amt.className = 'num';
             amt.innerHTML = `<input class="cell-input num" type="number" step="0.01" value="${expense ? (expense.amount_pence / 100).toFixed(2) : ''}">`;
-            row.insertCell().textContent = '';
+            if (cadence === 'yearly') {
+                row.insertCell().textContent = '';
+            }
             addEditActions(
                 row,
                 () => {
                     const name = row.querySelector('input[type=text]').value.trim();
-                    const cadence = row.querySelector('select').value;
                     const amount = row.querySelector('input[type=number]').value;
                     onSave({
                         name,
@@ -463,48 +427,54 @@
             );
         }
 
-        function renderExpenses(expenses) {
-            const tbody = document.querySelector('#expenses tbody');
-            tbody.innerHTML = '';
-            for (const e of expenses) {
-                const row = tbody.insertRow();
-                row.insertCell().textContent = e.name;
-                const cad = row.insertCell();
-                cad.innerHTML = `<span class="cadence-tag">${e.cadence}</span>`;
-                const amt = row.insertCell();
-                amt.className = 'num';
-                amt.textContent = gbp(e.amount_pence);
+        function renderExpenseRow(tbody, expense) {
+            const row = tbody.insertRow();
+            row.insertCell().textContent = expense.name;
+            const amt = row.insertCell();
+            amt.className = 'num';
+            amt.textContent = gbp(expense.amount_pence);
+            if (expense.cadence === 'yearly') {
                 const equiv = row.insertCell();
                 equiv.className = 'num';
-                const monthly = e.cadence === 'yearly' ? Math.round(e.amount_pence / 12) : e.amount_pence;
-                equiv.textContent = gbp(monthly);
-                addRowActions(
-                    row,
-                    () => {
-                        const insertBefore = row.nextSibling;
-                        const parent = row.parentElement;
-                        row.remove();
-                        const tmp = document.createElement('tbody');
-                        renderExpenseEditRow(
-                            tmp, e,
-                            async (payload) => { await apiPut(`/expenses/${e.id}`, payload); refresh(); },
-                            () => refresh()
-                        );
-                        parent.insertBefore(tmp.firstElementChild, insertBefore);
-                    },
-                    async () => {
-                        if (!confirm(`Delete expense "${e.name}"?`)) return;
-                        await apiDelete(`/expenses/${e.id}`);
-                        refresh();
-                    }
-                );
+                equiv.textContent = gbp(Math.round(expense.amount_pence / 12));
+            }
+            addRowActions(
+                row,
+                () => {
+                    const insertBefore = row.nextSibling;
+                    const parent = row.parentElement;
+                    row.remove();
+                    const tmp = document.createElement('tbody');
+                    renderExpenseEditRow(
+                        tmp, expense, expense.cadence,
+                        async (payload) => { await apiPut(`/expenses/${expense.id}`, payload); refresh(); },
+                        () => refresh()
+                    );
+                    parent.insertBefore(tmp.firstElementChild, insertBefore);
+                },
+                async () => {
+                    if (!confirm(`Delete expense "${expense.name}"?`)) return;
+                    await apiDelete(`/expenses/${expense.id}`);
+                    refresh();
+                }
+            );
+        }
+
+        function renderExpenses(expenses) {
+            const monthlyBody = document.querySelector('#monthly-expenses tbody');
+            const yearlyBody = document.querySelector('#yearly-expenses tbody');
+            monthlyBody.innerHTML = '';
+            yearlyBody.innerHTML = '';
+            for (const e of expenses) {
+                renderExpenseRow(e.cadence === 'yearly' ? yearlyBody : monthlyBody, e);
             }
         }
 
-        function startAddExpense() {
-            const tbody = document.querySelector('#expenses tbody');
+        function startAddExpense(cadence) {
+            const selector = cadence === 'yearly' ? '#yearly-expenses tbody' : '#monthly-expenses tbody';
+            const tbody = document.querySelector(selector);
             renderExpenseEditRow(
-                tbody, null,
+                tbody, null, cadence,
                 async (payload) => { await apiPost('/expenses', payload); refresh(); },
                 () => refresh()
             );
@@ -668,7 +638,7 @@
                 const el = document.getElementById(id);
                 if (id === 'summary') el.innerHTML = '';
             }
-            for (const id of ['cashflow', 'income', 'expenses', 'accounts']) {
+            for (const id of ['income', 'accounts', 'monthly-expenses', 'yearly-expenses']) {
                 document.querySelector(`#${id} tbody`).innerHTML = '';
             }
         }
@@ -684,7 +654,6 @@
             ]);
             renderSummary(projections, summary);
             renderChart(projections);
-            renderCashflow(summary);
             renderIncome(income);
             renderExpenses(expenses);
             renderAccounts(accounts);
@@ -710,7 +679,8 @@
         }
         document.getElementById('add-account').addEventListener('click', startAddAccount);
         document.getElementById('add-income').addEventListener('click', startAddIncome);
-        document.getElementById('add-expense').addEventListener('click', startAddExpense);
+        document.getElementById('add-monthly-expense').addEventListener('click', () => startAddExpense('monthly'));
+        document.getElementById('add-yearly-expense').addEventListener('click', () => startAddExpense('yearly'));
         refresh();
     </script>
 </body>
