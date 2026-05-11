@@ -74,3 +74,13 @@ def test_get_projections_uses_default_horizons_when_no_param():
     assert response.status_code == 200
     returned_months = [point["months"] for point in response.json()]
     assert returned_months == [0, 1, 3, 6, 12, 24, 60]
+
+
+def test_index_serves_html_with_chart_canvas():
+    client = TestClient(app)
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert '<canvas id="chart"' in response.text

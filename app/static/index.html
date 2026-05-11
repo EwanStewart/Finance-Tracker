@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="utf-8">
+    <title>Finance Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 960px; margin: 2em auto; padding: 0 1em; color: #222; }
+        h1 { font-size: 1.4em; margin-bottom: 0.2em; }
+        h2 { font-size: 1.1em; margin-top: 2em; }
+        .summary { color: #555; margin-bottom: 1.5em; }
+        canvas { max-width: 100%; }
+        table { border-collapse: collapse; margin-top: 1em; width: 100%; }
+        th, td { padding: 0.5em 0.8em; text-align: left; border-bottom: 1px solid #eee; }
+        td.num { text-align: right; font-variant-numeric: tabular-nums; }
+        th.num { text-align: right; }
+        tr.negative td.num { color: #b00; }
+    </style>
+</head>
+<body>
+    <h1>Finance Tracker</h1>
+    <div class="summary" id="summary"></div>
+    <canvas id="chart" height="120"></canvas>
+    <h2>Accounts</h2>
+    <table id="accounts">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th class="num">Balance</th>
+                <th class="num">Annual rate</th>
+                <th class="num">Monthly allocation</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <script>
+        const gbp = (pence) => new Intl.NumberFormat('en-GB', {
+            style: 'currency', currency: 'GBP'
+        }).format(pence / 100);
+        const monthLabel = (m) => m === 0 ? 'Now' : (m < 12 ? `${m} mo` : `${m / 12} yr`);
+
+        async function init() {
+            const [projections, accounts] = await Promise.all([
+                fetch('/projections').then((r) => r.json()),
+                fetch('/accounts').then((r) => r.json()),
+            ]);
+
+            const today = projections.find((p) => p.months === 0);
+            const oneYear = projections.find((p) => p.months === 12);
+            if (today && oneYear) {
+                document.getElementById('summary').textContent =
+                    `Today: ${gbp(today.total_pence)} · One year: ${gbp(oneYear.total_pence)}`;
+            }
+
+            new Chart(document.getElementById('chart'), {
+                type: 'line',
+                data: {
+                    labels: projections.map((p) => monthLabel(p.months)),
+                    datasets: [{
+                        label: 'Total net wealth',
+                        data: projections.map((p) => p.total_pence / 100),
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                        fill: true,
+                        tension: 0.2,
+                    }],
+                },
+                options: {
+                    scales: {
+                        y: {
+                            ticks: {
+                                callback: (v) => new Intl.NumberFormat('en-GB', {
+                                    style: 'currency', currency: 'GBP', maximumFractionDigits: 0
+                                }).format(v),
+                            },
+                        },
+                    },
+                    plugins: { legend: { display: false } },
+                },
+            });
+
+            const tbody = document.querySelector('#accounts tbody');
+            for (const a of accounts) {
+                const row = tbody.insertRow();
+                if (a.balance_pence < 0) row.classList.add('negative');
+                row.insertCell().textContent = a.name;
+                const bal = row.insertCell(); bal.className = 'num'; bal.textContent = gbp(a.balance_pence);
+                const rate = row.insertCell(); rate.className = 'num';
+                rate.textContent = (a.annual_rate_bp / 100).toFixed(2) + '%';
+                const alloc = row.insertCell(); alloc.className = 'num';
+                alloc.textContent = gbp(a.monthly_allocation_pence);
+            }
+        }
+        init();
+    </script>
+</body>
+</html>

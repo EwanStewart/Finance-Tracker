@@ -3,14 +3,21 @@ from pathlib import Path
 from typing import Generator
 
 from fastapi import Depends, FastAPI, Query
+from fastapi.responses import FileResponse
 
 from app.db import connect, list_accounts
 from app.projections import project_total
 
 DEFAULT_DB_PATH = Path("data/finance.db")
 DEFAULT_HORIZONS_MONTHS = [0, 1, 3, 6, 12, 24, 60]
+STATIC_DIR = Path(__file__).parent / "static"
 
 app = FastAPI(title="Finance-Tracker")
+
+
+@app.get("/", include_in_schema=False)
+def index():
+    return FileResponse(STATIC_DIR / "index.html")
 
 
 def get_db() -> Generator:
