@@ -126,6 +126,29 @@
         }
         tr.negative td.num.balance { color: var(--rbs-negative); }
         tbody tr:last-child td { border-bottom: 0; }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .grid-2 .card { margin-bottom: 0; }
+        @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
+        #cashflow td { border-bottom: 1px solid var(--rbs-line); padding: 0.6rem 0.4rem; }
+        #cashflow td.num { text-align: right; font-variant-numeric: tabular-nums; }
+        #cashflow tr.total td { font-weight: 600; color: var(--rbs-navy); border-bottom: 0; }
+        #cashflow tr.outflow td.num { color: var(--rbs-negative); }
+        .cadence-tag {
+            display: inline-block;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 0.12rem 0.5rem;
+            border-radius: 999px;
+            background: var(--rbs-purple-fade);
+            color: var(--rbs-purple);
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -140,6 +163,38 @@
         <div class="card">
             <h2>Projected net wealth</h2>
             <canvas id="chart" height="120"></canvas>
+        </div>
+        <div class="grid-2">
+            <div class="card">
+                <h2>Monthly cashflow</h2>
+                <table id="cashflow"><tbody></tbody></table>
+            </div>
+            <div class="card">
+                <h2>Income</h2>
+                <table id="income">
+                    <thead>
+                        <tr>
+                            <th>Source</th>
+                            <th class="num">Monthly</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card">
+            <h2>Expenses</h2>
+            <table id="expenses">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Cadence</th>
+                        <th class="num">Amount</th>
+                        <th class="num">Monthly equivalent</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
         </div>
         <div class="card">
             <h2>Accounts</h2>
@@ -165,21 +220,69 @@
         }).format(pence / 100);
         const monthLabel = (m) => m === 0 ? 'Now' : (m < 12 ? `${m} mo` : `${m / 12} yr`);
 
-        function renderSummary(projections) {
+        function renderSummary(projections, summary) {
             const find = (m) => projections.find((p) => p.months === m);
+            const today = find(0);
+            const oneYear = find(12);
             const tiles = [
-                { label: 'Today', point: find(0) },
-                { label: 'In 1 year', point: find(12) },
-                { label: 'In 5 years', point: find(60) },
+                { label: 'Today', value: today && gbp(today.total_pence) },
+                { label: 'In 1 year', value: oneYear && gbp(oneYear.total_pence) },
+                { label: 'Available to save', value: gbp(summary.available_to_save_pence) },
             ];
             const root = document.getElementById('summary');
-            for (const { label, point } of tiles) {
-                if (!point) continue;
+            for (const { label, value } of tiles) {
+                if (value === undefined || value === null) continue;
                 const tile = document.createElement('div');
                 tile.className = 'tile';
                 tile.innerHTML = `<div class="label">${label}</div>` +
-                    `<div class="value">${gbp(point.total_pence)}</div>`;
+                    `<div class="value">${value}</div>`;
                 root.appendChild(tile);
+            }
+        }
+
+        function renderCashflow(summary) {
+            const tbody = document.querySelector('#cashflow tbody');
+            const rows = [
+                { label: 'Income', value: summary.income_pence, cls: '' },
+                { label: 'Monthly expenses', value: -summary.monthly_expense_pence, cls: 'outflow' },
+                { label: 'Yearly expenses (per month)', value: -summary.yearly_monthly_equivalent_pence, cls: 'outflow' },
+                { label: 'Available to save', value: summary.available_to_save_pence, cls: 'total' },
+            ];
+            for (const { label, value, cls } of rows) {
+                const row = tbody.insertRow();
+                if (cls) row.className = cls;
+                row.insertCell().textContent = label;
+                const cell = row.insertCell();
+                cell.className = 'num';
+                cell.textContent = gbp(value);
+            }
+        }
+
+        function renderIncome(sources) {
+            const tbody = document.querySelector('#income tbody');
+            for (const s of sources) {
+                const row = tbody.insertRow();
+                row.insertCell().textContent = s.name;
+                const amt = row.insertCell();
+                amt.className = 'num';
+                amt.textContent = gbp(s.monthly_amount_pence);
+            }
+        }
+
+        function renderExpenses(expenses) {
+            const tbody = document.querySelector('#expenses tbody');
+            for (const e of expenses) {
+                const row = tbody.insertRow();
+                row.insertCell().textContent = e.name;
+                const cad = row.insertCell();
+                cad.innerHTML = `<span class="cadence-tag">${e.cadence}</span>`;
+                const amt = row.insertCell();
+                amt.className = 'num';
+                amt.textContent = gbp(e.amount_pence);
+                const equiv = row.insertCell();
+                equiv.className = 'num';
+                const monthly = e.cadence === 'yearly' ? Math.round(e.amount_pence / 12) : e.amount_pence;
+                equiv.textContent = gbp(monthly);
             }
         }
 
@@ -235,12 +338,18 @@
         }
 
         async function init() {
-            const [projections, accounts] = await Promise.all([
+            const [projections, accounts, income, expenses, summary] = await Promise.all([
                 fetch('/projections').then((r) => r.json()),
                 fetch('/accounts').then((r) => r.json()),
+                fetch('/income').then((r) => r.json()),
+                fetch('/expenses').then((r) => r.json()),
+                fetch('/summary').then((r) => r.json()),
             ]);
-            renderSummary(projections);
+            renderSummary(projections, summary);
             renderChart(projections);
+            renderCashflow(summary);
+            renderIncome(income);
+            renderExpenses(expenses);
             renderAccounts(accounts);
         }
         init();
