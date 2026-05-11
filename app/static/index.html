@@ -96,14 +96,15 @@
         .table-wrap {
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
-            margin: 0 -1.4rem -1.2rem;
-            padding: 0 1.4rem 1.2rem;
+            max-width: 100%;
         }
         table {
             border-collapse: collapse;
             width: 100%;
+            min-width: 100%;
             font-size: 0.95rem;
         }
+        .table-wrap > table { width: max-content; }
         th, td {
             padding: 0.65rem 0.4rem;
             text-align: left;
@@ -247,7 +248,6 @@
             header .wrap { padding: 0 1rem; }
             header h1 { font-size: 1.05rem; }
             .card { padding: 1rem 1.1rem; margin-bottom: 1rem; }
-            .table-wrap { margin: 0 -1.1rem -1rem; padding: 0 1.1rem 1rem; }
             td, th { padding: 0.7rem 0.4rem; white-space: nowrap; }
             .summary { gap: 0.75rem; }
             .summary .value { font-size: 1.2rem; }
