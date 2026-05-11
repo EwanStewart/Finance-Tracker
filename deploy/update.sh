@@ -1,15 +1,13 @@
 #!/bin/bash
 # Pull latest code, refresh dependencies, restart the service.
-# Run as root: sudo /opt/finance-tracker/deploy/update.sh
+# Callable by the dietpi user (the GitHub Actions runner) or root.
 
 set -euo pipefail
 
 cd /opt/finance-tracker
 
-sudo -u dietpi git pull --ff-only
-sudo -u dietpi .venv/bin/pip install --quiet --upgrade -r requirements.txt
+git pull --ff-only
+.venv/bin/pip install --quiet --upgrade -r requirements.txt
+sudo -n /bin/systemctl restart finance-tracker.service
 
-systemctl restart finance-tracker
-
-revision=$(sudo -u dietpi git rev-parse --short HEAD)
-echo "Restarted finance-tracker at ${revision}"
+echo "Restarted finance-tracker at $(git rev-parse --short HEAD)"
