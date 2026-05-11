@@ -114,6 +114,50 @@
         }
         tr.negative td.num.balance { color: var(--rbs-negative); }
         tbody tr:last-child td { border-bottom: 0; }
+        .horizons {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+        .horizon {
+            background: var(--rbs-card);
+            border: 1px solid var(--rbs-line);
+            border-radius: 8px;
+            padding: 0.85rem 0.95rem;
+        }
+        .horizon .label {
+            color: var(--rbs-muted);
+            font-size: 0.74rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.3rem;
+            min-height: 1.2em;
+        }
+        .horizon .value {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: var(--rbs-navy);
+            font-variant-numeric: tabular-nums;
+        }
+        .horizon.custom .label { padding: 0; }
+        .horizon.custom input {
+            font: inherit;
+            font-size: 0.74rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--rbs-muted);
+            background: transparent;
+            border: 0;
+            border-bottom: 1px dashed var(--rbs-line);
+            width: 100%;
+            padding: 0;
+            outline: none;
+        }
+        .horizon.custom input:focus { border-bottom-color: var(--rbs-purple); }
+        @media (max-width: 700px) {
+            .horizons { grid-template-columns: repeat(2, 1fr); }
+        }
         .cadence-tag {
             display: inline-block;
             font-size: 0.72rem;
@@ -210,6 +254,30 @@
         </nav>
 
         <section class="tab-panel active" id="tab-overview">
+            <div class="horizons" id="horizons">
+                <div class="horizon" data-months="1">
+                    <div class="label">1 month</div>
+                    <div class="value" data-value></div>
+                </div>
+                <div class="horizon" data-months="3">
+                    <div class="label">3 months</div>
+                    <div class="value" data-value></div>
+                </div>
+                <div class="horizon" data-months="6">
+                    <div class="label">6 months</div>
+                    <div class="value" data-value></div>
+                </div>
+                <div class="horizon" data-months="12">
+                    <div class="label">1 year</div>
+                    <div class="value" data-value></div>
+                </div>
+                <div class="horizon custom">
+                    <div class="label">
+                        <input id="custom-months" type="number" min="0" max="1200" step="1" placeholder="Months" inputmode="numeric">
+                    </div>
+                    <div class="value" id="custom-value">&mdash;</div>
+                </div>
+            </div>
             <div class="card">
                 <h2>Projected net wealth</h2>
                 <canvas id="chart" height="120"></canvas>
@@ -304,10 +372,8 @@
         function renderSummary(projections, summary) {
             const find = (m) => projections.find((p) => p.months === m);
             const today = find(0);
-            const oneYear = find(12);
             const tiles = [
                 { label: 'Today', value: today && gbp(today.total_pence) },
-                { label: 'In 1 year', value: oneYear && gbp(oneYear.total_pence) },
                 { label: 'Available to save', value: gbp(summary.available_to_save_pence) },
             ];
             const root = document.getElementById('summary');
@@ -319,6 +385,34 @@
                     `<div class="value">${value}</div>`;
                 root.appendChild(tile);
             }
+        }
+
+        function renderHorizons(projections) {
+            for (const el of document.querySelectorAll('.horizon[data-months]')) {
+                const months = Number(el.dataset.months);
+                const point = projections.find((p) => p.months === months);
+                el.querySelector('[data-value]').textContent =
+                    point ? gbp(point.total_pence) : '—';
+            }
+        }
+
+        let customDebounce;
+        function setupCustomHorizon() {
+            const input = document.getElementById('custom-months');
+            const output = document.getElementById('custom-value');
+            input.addEventListener('input', () => {
+                clearTimeout(customDebounce);
+                const raw = input.value.trim();
+                if (raw === '') {
+                    output.textContent = '—';
+                    return;
+                }
+                const months = Math.max(0, Math.min(1200, parseInt(raw, 10) || 0));
+                customDebounce = setTimeout(async () => {
+                    const data = await fetch(`/projections?months=${months}`).then((r) => r.json());
+                    output.textContent = data[0] ? gbp(data[0].total_pence) : '—';
+                }, 200);
+            });
         }
 
         function addRowActions(row, onEdit, onDelete) {
@@ -653,6 +747,7 @@
                 fetch('/summary').then((r) => r.json()),
             ]);
             renderSummary(projections, summary);
+            renderHorizons(projections);
             renderChart(projections);
             renderIncome(income);
             renderExpenses(expenses);
@@ -681,6 +776,7 @@
         document.getElementById('add-income').addEventListener('click', startAddIncome);
         document.getElementById('add-monthly-expense').addEventListener('click', () => startAddExpense('monthly'));
         document.getElementById('add-yearly-expense').addEventListener('click', () => startAddExpense('yearly'));
+        setupCustomHorizon();
         refresh();
     </script>
 </body>
