@@ -1,0 +1,17 @@
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+[tool.pylint.main]
+ignore = [".venv", "build", "dist"]
+
+[tool.pylint.format]
+max-line-length = 88
+
+[tool.pylint."messages control"]
+disable = [
+    "missing-module-docstring",
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "too-few-public-methods",
+]

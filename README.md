@@ -18,3 +18,16 @@ Open http://localhost:8000.
 ```
 pytest
 ```
+
+If `pytest` picks up unrelated packages from a sourced ROS environment, run:
+
+```
+PYTHONPATH= AMENT_PREFIX_PATH= pytest
+```
+
+## Format and lint
+
+```
+black app tests
+pylint app tests
+```
