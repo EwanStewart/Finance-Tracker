@@ -2,6 +2,8 @@
 <html lang="en-GB">
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0a2240">
     <title>Finance Tracker</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -91,6 +93,12 @@
             letter-spacing: 0.3px;
         }
         canvas { max-width: 100%; }
+        .table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin: 0 -1.4rem -1.2rem;
+            padding: 0 1.4rem 1.2rem;
+        }
         table {
             border-collapse: collapse;
             width: 100%;
@@ -234,6 +242,26 @@
         }
         .tab-panel { display: none; }
         .tab-panel.active { display: block; }
+        @media (max-width: 700px) {
+            main { padding: 0 1rem 2.5rem; margin-top: 1.25rem; }
+            header .wrap { padding: 0 1rem; }
+            header h1 { font-size: 1.05rem; }
+            .card { padding: 1rem 1.1rem; margin-bottom: 1rem; }
+            .table-wrap { margin: 0 -1.1rem -1rem; padding: 0 1.1rem 1rem; }
+            td, th { padding: 0.7rem 0.4rem; white-space: nowrap; }
+            .summary { gap: 0.75rem; }
+            .summary .value { font-size: 1.2rem; }
+            .horizons { gap: 0.6rem; margin-bottom: 1.25rem; }
+            .horizon { padding: 0.7rem 0.75rem; }
+            .horizon .value { font-size: 1rem; }
+            .horizon.custom input { font-size: 16px; }
+            .tabs { gap: 0; }
+            .tabs button { padding: 0.85rem 0.85rem; font-size: 0.95rem; }
+            .btn { min-height: 40px; padding: 0.55rem 0.95rem; font-size: 0.9rem; }
+            .row-actions .btn { min-height: 36px; padding: 0.45rem 0.75rem; }
+            .card-head { flex-wrap: wrap; gap: 0.5rem; }
+            .cell-input { font-size: 16px; min-width: 0; }
+        }
     </style>
 </head>
 <body>
@@ -288,34 +316,38 @@
                     <h2>Savings</h2>
                     <button class="btn" id="add-savings">+ Add savings</button>
                 </div>
-                <table id="savings-accounts">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th class="num">Balance</th>
-                            <th class="num">Annual rate</th>
-                            <th class="num">Monthly allocation</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
+                <div class="table-wrap">
+                    <table id="savings-accounts">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th class="num">Balance</th>
+                                <th class="num">Annual rate</th>
+                                <th class="num">Monthly allocation</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
             </div>
             <div class="card">
                 <div class="card-head">
                     <h2>Credit cards</h2>
                     <button class="btn" id="add-credit-card">+ Add credit card</button>
                 </div>
-                <table id="credit-cards">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th class="num">Balance</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
+                <div class="table-wrap">
+                    <table id="credit-cards">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th class="num">Balance</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
             </div>
         </section>
 
@@ -325,16 +357,18 @@
                     <h2>Income</h2>
                     <button class="btn" id="add-income">+ Add</button>
                 </div>
-                <table id="income">
-                    <thead>
-                        <tr>
-                            <th>Source</th>
-                            <th class="num">Monthly</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
+                <div class="table-wrap">
+                    <table id="income">
+                        <thead>
+                            <tr>
+                                <th>Source</th>
+                                <th class="num">Monthly</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
             </div>
         </section>
 
@@ -344,33 +378,37 @@
                     <h2>Monthly expenses</h2>
                     <button class="btn" id="add-monthly-expense">+ Add monthly</button>
                 </div>
-                <table id="monthly-expenses">
-                    <thead>
-                        <tr>
-                            <th>Category</th>
-                            <th class="num">Amount</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
+                <div class="table-wrap">
+                    <table id="monthly-expenses">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th class="num">Amount</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
             </div>
             <div class="card">
                 <div class="card-head">
                     <h2>Yearly expenses</h2>
                     <button class="btn" id="add-yearly-expense">+ Add yearly</button>
                 </div>
-                <table id="yearly-expenses">
-                    <thead>
-                        <tr>
-                            <th>Category</th>
-                            <th class="num">Amount</th>
-                            <th class="num">Monthly equivalent</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
+                <div class="table-wrap">
+                    <table id="yearly-expenses">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th class="num">Amount</th>
+                                <th class="num">Monthly equivalent</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
             </div>
         </section>
     </main>
@@ -383,22 +421,16 @@
         }).format(pence / 100);
         const monthLabel = (m) => m === 0 ? 'Now' : (m < 12 ? `${m} mo` : `${m / 12} yr`);
 
-        function renderSummary(projections, summary) {
+        function renderSummary(projections) {
             const find = (m) => projections.find((p) => p.months === m);
             const today = find(0);
-            const tiles = [
-                { label: 'Today', value: today && gbp(today.total_pence) },
-                { label: 'Available to save', value: gbp(summary.available_to_save_pence) },
-            ];
             const root = document.getElementById('summary');
-            for (const { label, value } of tiles) {
-                if (value === undefined || value === null) continue;
-                const tile = document.createElement('div');
-                tile.className = 'tile';
-                tile.innerHTML = `<div class="label">${label}</div>` +
-                    `<div class="value">${value}</div>`;
-                root.appendChild(tile);
-            }
+            if (!today) return;
+            const tile = document.createElement('div');
+            tile.className = 'tile';
+            tile.innerHTML = '<div class="label">Today</div>' +
+                `<div class="value">${gbp(today.total_pence)}</div>`;
+            root.appendChild(tile);
         }
 
         function renderHorizons(projections) {
@@ -805,14 +837,13 @@
 
         async function refresh() {
             clearAll();
-            const [projections, accounts, income, expenses, summary] = await Promise.all([
+            const [projections, accounts, income, expenses] = await Promise.all([
                 fetch('/projections').then((r) => r.json()),
                 fetch('/accounts').then((r) => r.json()),
                 fetch('/income').then((r) => r.json()),
                 fetch('/expenses').then((r) => r.json()),
-                fetch('/summary').then((r) => r.json()),
             ]);
-            renderSummary(projections, summary);
+            renderSummary(projections);
             renderHorizons(projections);
             renderChart(projections);
             renderIncome(income);
