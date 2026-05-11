@@ -1,5 +1,7 @@
 from dataclasses import dataclass
-from typing import Iterable, Optional
+from typing import Iterable, Literal, Optional
+
+Cadence = Literal["monthly", "yearly"]
 
 
 @dataclass(frozen=True)
@@ -15,6 +17,14 @@ class Account:
 class IncomeSource:
     name: str
     monthly_amount_pence: int
+    id: Optional[int] = None
+
+
+@dataclass(frozen=True)
+class Expense:
+    name: str
+    amount_pence: int
+    cadence: Cadence
     id: Optional[int] = None
 
 
