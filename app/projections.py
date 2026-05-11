@@ -11,6 +11,13 @@ class Account:
     id: Optional[int] = None
 
 
+@dataclass(frozen=True)
+class IncomeSource:
+    name: str
+    monthly_amount_pence: int
+    id: Optional[int] = None
+
+
 def project_balance(
     principal_pence: int,
     annual_rate_bp: int,
