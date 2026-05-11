@@ -149,6 +149,46 @@
             color: var(--rbs-purple);
             font-weight: 600;
         }
+        .card-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .card-head h2 { margin: 0; }
+        .btn {
+            font: inherit;
+            border: 1px solid var(--rbs-navy);
+            background: var(--rbs-navy);
+            color: #fff;
+            padding: 0.35rem 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .btn:hover { background: var(--rbs-navy-deep); }
+        .btn-ghost {
+            background: transparent;
+            color: var(--rbs-navy);
+        }
+        .btn-ghost:hover { background: rgba(10, 34, 64, 0.06); }
+        .btn-danger {
+            border-color: var(--rbs-negative);
+            background: transparent;
+            color: var(--rbs-negative);
+        }
+        .btn-danger:hover { background: rgba(184, 0, 46, 0.08); }
+        .row-actions { white-space: nowrap; text-align: right; }
+        .row-actions .btn { margin-left: 0.3rem; padding: 0.25rem 0.6rem; font-size: 0.78rem; }
+        input.cell-input {
+            font: inherit;
+            border: 1px solid var(--rbs-line);
+            border-radius: 3px;
+            padding: 0.25rem 0.4rem;
+            width: 100%;
+            min-width: 6rem;
+        }
+        input.cell-input.num { text-align: right; font-variant-numeric: tabular-nums; }
     </style>
 </head>
 <body>
@@ -197,7 +237,10 @@
             </table>
         </div>
         <div class="card">
-            <h2>Accounts</h2>
+            <div class="card-head">
+                <h2>Accounts</h2>
+                <button class="btn" id="add-account">+ Add account</button>
+            </div>
             <table id="accounts">
                 <thead>
                     <tr>
@@ -205,6 +248,7 @@
                         <th class="num">Balance</th>
                         <th class="num">Annual rate</th>
                         <th class="num">Monthly allocation</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -286,12 +330,14 @@
             }
         }
 
+        let chartInstance = null;
         function renderChart(projections) {
+            if (chartInstance) chartInstance.destroy();
             const navy = getComputedStyle(document.documentElement)
                 .getPropertyValue('--rbs-purple').trim();
             const fade = getComputedStyle(document.documentElement)
                 .getPropertyValue('--rbs-purple-fade').trim();
-            new Chart(document.getElementById('chart'), {
+            chartInstance = new Chart(document.getElementById('chart'), {
                 type: 'line',
                 data: {
                     labels: projections.map((p) => monthLabel(p.months)),
@@ -319,8 +365,41 @@
             });
         }
 
+        function accountToPayload(formRow) {
+            const inputs = formRow.querySelectorAll('input');
+            return {
+                name: inputs[0].value.trim(),
+                balance_pence: Math.round(parseFloat(inputs[1].value || '0') * 100),
+                annual_rate_bp: Math.round(parseFloat(inputs[2].value || '0') * 100),
+                monthly_allocation_pence: Math.round(parseFloat(inputs[3].value || '0') * 100),
+            };
+        }
+
+        function renderAccountEditRow(tbody, account, onSave, onCancel) {
+            const row = tbody.insertRow();
+            row.className = 'editing';
+            const nameCell = row.insertCell();
+            nameCell.innerHTML = `<input class="cell-input" type="text" value="${account?.name ?? ''}" placeholder="Account name">`;
+            const balCell = row.insertCell();
+            balCell.className = 'num';
+            balCell.innerHTML = `<input class="cell-input num" type="number" step="0.01" value="${account ? (account.balance_pence / 100).toFixed(2) : ''}">`;
+            const rateCell = row.insertCell();
+            rateCell.className = 'num';
+            rateCell.innerHTML = `<input class="cell-input num" type="number" step="0.01" value="${account ? (account.annual_rate_bp / 100).toFixed(2) : '0'}">`;
+            const allocCell = row.insertCell();
+            allocCell.className = 'num';
+            allocCell.innerHTML = `<input class="cell-input num" type="number" step="0.01" value="${account ? (account.monthly_allocation_pence / 100).toFixed(2) : '0'}">`;
+            const actionsCell = row.insertCell();
+            actionsCell.className = 'row-actions';
+            actionsCell.innerHTML = '<button class="btn">Save</button> <button class="btn btn-ghost">Cancel</button>';
+            const [saveBtn, cancelBtn] = actionsCell.querySelectorAll('button');
+            saveBtn.addEventListener('click', () => onSave(accountToPayload(row)));
+            cancelBtn.addEventListener('click', onCancel);
+        }
+
         function renderAccounts(accounts) {
             const tbody = document.querySelector('#accounts tbody');
+            tbody.innerHTML = '';
             for (const a of accounts) {
                 const row = tbody.insertRow();
                 if (a.balance_pence < 0) row.classList.add('negative');
@@ -334,10 +413,88 @@
                 const alloc = row.insertCell();
                 alloc.className = 'num';
                 alloc.textContent = gbp(a.monthly_allocation_pence);
+                const actions = row.insertCell();
+                actions.className = 'row-actions';
+                actions.innerHTML = '<button class="btn btn-ghost">Edit</button> <button class="btn btn-danger">Delete</button>';
+                const [editBtn, deleteBtn] = actions.querySelectorAll('button');
+                editBtn.addEventListener('click', () => startEditAccount(a, row));
+                deleteBtn.addEventListener('click', () => deleteAccount(a));
             }
         }
 
-        async function init() {
+        function startEditAccount(account, existingRow) {
+            const tbody = existingRow.parentElement;
+            const insertBefore = existingRow.nextSibling;
+            existingRow.remove();
+            const tempTbody = document.createElement('tbody');
+            renderAccountEditRow(
+                tempTbody,
+                account,
+                async (payload) => {
+                    await apiPut(`/accounts/${account.id}`, payload);
+                    await refresh();
+                },
+                () => refresh()
+            );
+            tbody.insertBefore(tempTbody.firstElementChild, insertBefore);
+        }
+
+        function startAddAccount() {
+            const tbody = document.querySelector('#accounts tbody');
+            renderAccountEditRow(
+                tbody,
+                null,
+                async (payload) => {
+                    await apiPost('/accounts', payload);
+                    await refresh();
+                },
+                () => refresh()
+            );
+        }
+
+        async function deleteAccount(account) {
+            if (!confirm(`Delete account "${account.name}"?`)) return;
+            await apiDelete(`/accounts/${account.id}`);
+            await refresh();
+        }
+
+        async function apiPost(url, body) {
+            const r = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            if (!r.ok) throw new Error(await r.text());
+            return r.json();
+        }
+
+        async function apiPut(url, body) {
+            const r = await fetch(url, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            if (!r.ok) throw new Error(await r.text());
+            return r.json();
+        }
+
+        async function apiDelete(url) {
+            const r = await fetch(url, { method: 'DELETE' });
+            if (!r.ok && r.status !== 204) throw new Error(await r.text());
+        }
+
+        function clearAll() {
+            for (const id of ['summary', 'chart']) {
+                const el = document.getElementById(id);
+                if (id === 'summary') el.innerHTML = '';
+            }
+            for (const id of ['cashflow', 'income', 'expenses', 'accounts']) {
+                document.querySelector(`#${id} tbody`).innerHTML = '';
+            }
+        }
+
+        async function refresh() {
+            clearAll();
             const [projections, accounts, income, expenses, summary] = await Promise.all([
                 fetch('/projections').then((r) => r.json()),
                 fetch('/accounts').then((r) => r.json()),
@@ -352,7 +509,9 @@
             renderExpenses(expenses);
             renderAccounts(accounts);
         }
-        init();
+
+        document.getElementById('add-account').addEventListener('click', startAddAccount);
+        refresh();
     </script>
 </body>
 </html>
