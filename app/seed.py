@@ -4,8 +4,13 @@ from typing import Optional, Union
 
 import openpyxl
 
-from app.db import connect, replace_accounts
-from app.projections import Account
+from app.db import (
+    connect,
+    insert_expense,
+    insert_income_source,
+    replace_accounts,
+)
+from app.projections import Account, Expense, IncomeSource
 
 
 def _to_pence(value, multiplier=100):
@@ -13,10 +18,10 @@ def _to_pence(value, multiplier=100):
     return pence
 
 
-def _find_header_row(ws, text):
+def _find_header_row(ws, text, column=1):
     result = None
     for row in range(1, 100):
-        value = ws.cell(row=row, column=1).value
+        value = ws.cell(row=row, column=column).value
         if value and str(value).upper() == text.upper():
             result = row
             break
@@ -57,6 +62,19 @@ def _read_credit_cards(ws) -> list[Account]:
     return accounts
 
 
+def _read_table(ws, header_text, header_col, name_col, value_col):
+    rows: list[tuple[str, int]] = []
+    start = _find_header_row(ws, header_text, column=header_col)
+    if start is not None:
+        for row in range(start + 2, start + 30):
+            name = ws.cell(row=row, column=name_col).value
+            if not name or "TOTAL" in str(name).upper():
+                break
+            amount = ws.cell(row=row, column=value_col).value
+            rows.append((str(name), _to_pence(amount)))
+    return rows
+
+
 def read_accounts_from_xlsx(path: Union[str, Path]) -> list[Account]:
     workbook = openpyxl.load_workbook(path, data_only=True)
     worksheet = workbook["Inputs"]
@@ -64,11 +82,52 @@ def read_accounts_from_xlsx(path: Union[str, Path]) -> list[Account]:
     return accounts
 
 
-def seed_database(xlsx_path: Union[str, Path], db_path: Union[str, Path]) -> int:
+def read_income_from_xlsx(path: Union[str, Path]) -> list[IncomeSource]:
+    workbook = openpyxl.load_workbook(path, data_only=True)
+    worksheet = workbook["Inputs"]
+    rows = _read_table(worksheet, "MONTHLY INCOME", 6, 6, 7)
+    sources = [
+        IncomeSource(name=name, monthly_amount_pence=amount) for name, amount in rows
+    ]
+    return sources
+
+
+def read_expenses_from_xlsx(path: Union[str, Path]) -> list[Expense]:
+    workbook = openpyxl.load_workbook(path, data_only=True)
+    worksheet = workbook["Inputs"]
+    monthly_rows = _read_table(worksheet, "MONTHLY EXPENSES", 6, 6, 7)
+    yearly_rows = _read_table(worksheet, "YEARLY EXPENSES", 9, 9, 10)
+    monthly = [
+        Expense(name=name, amount_pence=amount, cadence="monthly")
+        for name, amount in monthly_rows
+    ]
+    yearly = [
+        Expense(name=name, amount_pence=amount, cadence="yearly")
+        for name, amount in yearly_rows
+    ]
+    return monthly + yearly
+
+
+def seed_database(
+    xlsx_path: Union[str, Path], db_path: Union[str, Path]
+) -> dict[str, int]:
     accounts = read_accounts_from_xlsx(xlsx_path)
+    income = read_income_from_xlsx(xlsx_path)
+    expenses = read_expenses_from_xlsx(xlsx_path)
     conn = connect(db_path)
+    with conn:
+        conn.execute("DELETE FROM income_sources")
+        conn.execute("DELETE FROM expenses")
     replace_accounts(conn, accounts)
-    return len(accounts)
+    for source in income:
+        insert_income_source(conn, source)
+    for expense in expenses:
+        insert_expense(conn, expense)
+    return {
+        "accounts": len(accounts),
+        "income_sources": len(income),
+        "expenses": len(expenses),
+    }
 
 
 def main(argv: Optional[list[str]] = None) -> None:
@@ -90,8 +149,9 @@ def main(argv: Optional[list[str]] = None) -> None:
     )
     args = parser.parse_args(argv)
     args.db.parent.mkdir(parents=True, exist_ok=True)
-    count = seed_database(args.xlsx, args.db)
-    print(f"Seeded {count} accounts from {args.xlsx} into {args.db}")
+    counts = seed_database(args.xlsx, args.db)
+    summary = ", ".join(f"{count} {name}" for name, count in counts.items())
+    print(f"Seeded {summary} from {args.xlsx} into {args.db}")
 
 
 if __name__ == "__main__":
