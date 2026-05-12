@@ -318,6 +318,7 @@
             <button data-tab="accounts">Accounts</button>
             <button data-tab="income">Income</button>
             <button data-tab="expenses">Expenses</button>
+            <button data-tab="history">History</button>
         </nav>
 
         <section class="tab-panel active" id="tab-overview">
@@ -444,6 +445,40 @@
                                 <th>Category</th>
                                 <th class="num">Amount</th>
                                 <th class="num">Monthly equivalent</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="tab-panel" id="tab-history">
+            <div class="card">
+                <div class="card-head">
+                    <h2>Net wealth over time</h2>
+                    <div class="row-actions">
+                        <select id="history-filter" class="cell-input" aria-label="Filter snapshots">
+                            <option value="all">All snapshots</option>
+                            <option value="manual">Manual only</option>
+                            <option value="month-end">Month-end only</option>
+                        </select>
+                        <button class="btn" id="snapshot-now">+ Snapshot now</button>
+                    </div>
+                </div>
+                <canvas id="history-chart" height="120"></canvas>
+            </div>
+            <div class="card">
+                <h2>Snapshots</h2>
+                <div class="table-wrap">
+                    <table id="snapshots">
+                        <thead>
+                            <tr>
+                                <th>Taken</th>
+                                <th>Trigger</th>
+                                <th>Label</th>
+                                <th class="num">Total</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -868,18 +903,123 @@
                 const el = document.getElementById(id);
                 if (id === 'summary') el.innerHTML = '';
             }
-            for (const id of ['income', 'savings-accounts', 'credit-cards', 'monthly-expenses', 'yearly-expenses']) {
+            for (const id of ['income', 'savings-accounts', 'credit-cards', 'monthly-expenses', 'yearly-expenses', 'snapshots']) {
                 document.querySelector(`#${id} tbody`).innerHTML = '';
             }
         }
 
+        let historyChartInstance = null;
+        let allSnapshots = [];
+
+        function filterSnapshots(snapshots, mode) {
+            if (mode === 'manual') {
+                return snapshots.filter((s) => s.trigger === 'manual');
+            }
+            if (mode === 'month-end') {
+                const byMonth = new Map();
+                for (const s of snapshots) {
+                    const key = s.taken_at.slice(0, 7);
+                    const existing = byMonth.get(key);
+                    if (!existing || s.taken_at > existing.taken_at) {
+                        byMonth.set(key, s);
+                    }
+                }
+                return Array.from(byMonth.values()).sort(
+                    (a, b) => a.taken_at.localeCompare(b.taken_at)
+                );
+            }
+            return snapshots;
+        }
+
+        function renderHistoryChart(snapshots) {
+            if (historyChartInstance) historyChartInstance.destroy();
+            const navy = getComputedStyle(document.documentElement)
+                .getPropertyValue('--rbs-purple').trim();
+            const fade = getComputedStyle(document.documentElement)
+                .getPropertyValue('--rbs-purple-fade').trim();
+            historyChartInstance = new Chart(document.getElementById('history-chart'), {
+                type: 'line',
+                data: {
+                    labels: snapshots.map((s) => s.taken_at.slice(0, 10)),
+                    datasets: [{
+                        label: 'Net wealth',
+                        data: snapshots.map((s) => (s.payload.total_pence ?? 0) / 100),
+                        borderColor: navy,
+                        backgroundColor: fade,
+                        pointBackgroundColor: navy,
+                        fill: true,
+                        tension: 0.25,
+                        borderWidth: 2,
+                    }],
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: {
+                            grid: { color: '#eef0f3' },
+                            ticks: { callback: (v) => gbpShort(v * 100) },
+                        },
+                        x: { grid: { display: false } },
+                    },
+                },
+            });
+        }
+
+        function formatTaken(iso) {
+            const d = new Date(iso);
+            if (Number.isNaN(d.getTime())) return iso;
+            return d.toLocaleString('en-GB', {
+                year: 'numeric', month: 'short', day: '2-digit',
+                hour: '2-digit', minute: '2-digit',
+            });
+        }
+
+        function renderSnapshotsTable(snapshots) {
+            const tbody = document.querySelector('#snapshots tbody');
+            tbody.innerHTML = '';
+            for (const snap of [...snapshots].reverse()) {
+                const row = tbody.insertRow();
+                _labelledCell(row, 'Taken', false, formatTaken(snap.taken_at));
+                _labelledCell(row, 'Trigger', false, snap.trigger);
+                _labelledCell(row, 'Label', false, snap.label ?? '');
+                _labelledCell(row, 'Total', true, gbp(snap.payload.total_pence ?? 0));
+                const cell = row.insertCell();
+                cell.className = 'row-actions';
+                cell.innerHTML = '<button class="btn btn-danger">Delete</button>';
+                cell.querySelector('button').addEventListener('click', async () => {
+                    if (!confirm('Delete this snapshot?')) return;
+                    await apiDelete(`/snapshots/${snap.id}`);
+                    refreshHistory();
+                });
+            }
+        }
+
+        function renderHistory() {
+            const mode = document.getElementById('history-filter').value;
+            const filtered = filterSnapshots(allSnapshots, mode);
+            renderHistoryChart(filtered);
+            renderSnapshotsTable(filtered);
+        }
+
+        async function refreshHistory() {
+            allSnapshots = await fetch('/snapshots').then((r) => r.json());
+            renderHistory();
+        }
+
+        async function snapshotNow() {
+            const label = prompt('Label for this snapshot (optional):', '') ?? '';
+            await apiPost('/snapshots', { label: label.trim() || null });
+            refreshHistory();
+        }
+
         async function refresh() {
             clearAll();
-            const [projections, accounts, income, expenses] = await Promise.all([
+            const [projections, accounts, income, expenses, snapshots] = await Promise.all([
                 fetch('/projections').then((r) => r.json()),
                 fetch('/accounts').then((r) => r.json()),
                 fetch('/income').then((r) => r.json()),
                 fetch('/expenses').then((r) => r.json()),
+                fetch('/snapshots').then((r) => r.json()),
             ]);
             renderSummary(projections);
             renderHorizons(projections);
@@ -887,6 +1027,8 @@
             renderIncome(income);
             renderExpenses(expenses);
             renderAccounts(accounts);
+            allSnapshots = snapshots;
+            renderHistory();
         }
 
         function activateTab(name) {
@@ -904,7 +1046,7 @@
             b.addEventListener('click', () => activateTab(b.dataset.tab));
         });
         const initialTab = location.hash.replace('#', '') || 'overview';
-        if (['overview', 'accounts', 'income', 'expenses'].includes(initialTab)) {
+        if (['overview', 'accounts', 'income', 'expenses', 'history'].includes(initialTab)) {
             activateTab(initialTab);
         }
         document.getElementById('add-savings').addEventListener('click', startAddSavings);
@@ -912,6 +1054,8 @@
         document.getElementById('add-income').addEventListener('click', startAddIncome);
         document.getElementById('add-monthly-expense').addEventListener('click', () => startAddExpense('monthly'));
         document.getElementById('add-yearly-expense').addEventListener('click', () => startAddExpense('yearly'));
+        document.getElementById('snapshot-now').addEventListener('click', snapshotNow);
+        document.getElementById('history-filter').addEventListener('change', renderHistory);
         setupCustomHorizon();
         refresh();
     </script>
