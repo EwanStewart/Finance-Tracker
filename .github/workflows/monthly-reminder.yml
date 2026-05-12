@@ -17,5 +17,5 @@ jobs:
       - name: Send reminder if today is the first UK working day
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          TO_EMAIL: ***REMOVED***
+          TO_EMAIL: ${{ secrets.REMINDER_TO_EMAIL }}
         run: python -m scripts.monthly_reminder
