@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from typing import Iterable, Literal, Optional
+from dataclasses import dataclass, field
+from typing import Any, Iterable, Literal, Optional
 
 Cadence = Literal["monthly", "yearly"]
 
@@ -29,6 +29,18 @@ class Expense:
     name: str
     amount_pence: int
     cadence: Cadence
+    id: Optional[int] = None
+
+
+SnapshotTrigger = Literal["manual", "write"]
+
+
+@dataclass(frozen=True)
+class Snapshot:
+    taken_at: str
+    payload: dict[str, Any] = field(default_factory=dict)
+    trigger: SnapshotTrigger = "manual"
+    label: Optional[str] = None
     id: Optional[int] = None
 
 

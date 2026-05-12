@@ -1,8 +1,11 @@
+import json
 import sqlite3
+from dataclasses import asdict
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, Optional, Union
+from typing import Any, Callable, Iterable, Optional, Union
 
-from app.projections import Account, Expense, IncomeSource
+from app.projections import Account, Expense, IncomeSource, Snapshot
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS accounts (
@@ -26,6 +29,16 @@ CREATE TABLE IF NOT EXISTS expenses (
     amount_pence INTEGER NOT NULL,
     cadence TEXT NOT NULL CHECK (cadence IN ('monthly', 'yearly'))
 );
+
+CREATE TABLE IF NOT EXISTS snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    taken_at TEXT NOT NULL,
+    trigger TEXT NOT NULL DEFAULT 'manual' CHECK (trigger IN ('manual', 'write')),
+    label TEXT,
+    payload TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_snapshots_taken_at ON snapshots(taken_at);
 """
 
 
@@ -208,3 +221,114 @@ def replace_accounts(conn: sqlite3.Connection, accounts: Iterable[Account]) -> N
     with conn:
         conn.execute("DELETE FROM accounts")
         conn.executemany(INSERT_SQL, rows)
+
+
+_SNAPSHOT_COLUMNS = "id, taken_at, trigger, label, payload"
+
+
+def _row_to_snapshot(row: sqlite3.Row) -> Snapshot:
+    return Snapshot(
+        id=row["id"],
+        taken_at=row["taken_at"],
+        trigger=row["trigger"],
+        label=row["label"],
+        payload=json.loads(row["payload"]),
+    )
+
+
+def insert_snapshot(conn: sqlite3.Connection, snapshot: Snapshot) -> int:
+    cursor = conn.execute(
+        "INSERT INTO snapshots (taken_at, trigger, label, payload) "
+        "VALUES (?, ?, ?, ?)",
+        (
+            snapshot.taken_at,
+            snapshot.trigger,
+            snapshot.label,
+            json.dumps(snapshot.payload),
+        ),
+    )
+    conn.commit()
+    return cursor.lastrowid
+
+
+def list_snapshots(conn: sqlite3.Connection) -> list[Snapshot]:
+    rows = conn.execute(
+        f"SELECT {_SNAPSHOT_COLUMNS} FROM snapshots ORDER BY taken_at, id"
+    ).fetchall()
+    return [_row_to_snapshot(row) for row in rows]
+
+
+def latest_snapshot(conn: sqlite3.Connection) -> Optional[Snapshot]:
+    row = conn.execute(
+        f"SELECT {_SNAPSHOT_COLUMNS} FROM snapshots "
+        "ORDER BY taken_at DESC, id DESC LIMIT 1"
+    ).fetchone()
+    return _row_to_snapshot(row) if row is not None else None
+
+
+def delete_snapshot(conn: sqlite3.Connection, snapshot_id: int) -> bool:
+    cursor = conn.execute("DELETE FROM snapshots WHERE id = ?", (snapshot_id,))
+    conn.commit()
+    return cursor.rowcount > 0
+
+
+def _utcnow_iso() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _parse_iso(value: str) -> datetime:
+    cleaned = value.replace("Z", "+00:00")
+    return datetime.fromisoformat(cleaned)
+
+
+def build_snapshot_payload(conn: sqlite3.Connection) -> dict[str, Any]:
+    accounts = list_accounts(conn)
+    income = list_income_sources(conn)
+    expenses = list_expenses(conn)
+    total_pence = sum(account.balance_pence for account in accounts)
+    return {
+        "accounts": [asdict(account) for account in accounts],
+        "income": [asdict(source) for source in income],
+        "expenses": [asdict(expense) for expense in expenses],
+        "total_pence": total_pence,
+    }
+
+
+def capture_snapshot(
+    conn: sqlite3.Connection,
+    trigger: str = "manual",
+    label: Optional[str] = None,
+    now_fn: Callable[[], str] = _utcnow_iso,
+    debounce_seconds: int = 60,
+) -> Snapshot:
+    taken_at = now_fn()
+    payload = build_snapshot_payload(conn)
+    previous = latest_snapshot(conn)
+    should_replace = (
+        trigger == "write"
+        and previous is not None
+        and previous.trigger == "write"
+        and (_parse_iso(taken_at) - _parse_iso(previous.taken_at)).total_seconds()
+        < debounce_seconds
+    )
+    if should_replace:
+        conn.execute(
+            "UPDATE snapshots SET taken_at = ?, trigger = ?, label = ?, payload = ? "
+            "WHERE id = ?",
+            (taken_at, trigger, label, json.dumps(payload), previous.id),
+        )
+        conn.commit()
+        snapshot_id = previous.id
+    else:
+        snapshot_id = insert_snapshot(
+            conn,
+            Snapshot(taken_at=taken_at, payload=payload, trigger=trigger, label=label),
+        )
+    result = Snapshot(
+        id=snapshot_id,
+        taken_at=taken_at,
+        payload=payload,
+        trigger=trigger,
+        label=label,
+    )
+    return result
