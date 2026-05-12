@@ -1071,8 +1071,9 @@
                     cards.map((a) => [a.name, `<span style="color:var(--rbs-negative);">${gbp(a.balance_pence)}</span>`]));
                 html += _detailTable('Income', ['Source', 'Monthly'],
                     income.map((i) => [i.name, gbp(i.monthly_amount_pence)]));
-                const monthly = expenses.filter((e) => e.cadence === 'monthly');
-                const yearly = expenses.filter((e) => e.cadence === 'yearly');
+                const byAmountDesc = (a, b) => b.amount_pence - a.amount_pence;
+                const monthly = expenses.filter((e) => e.cadence === 'monthly').sort(byAmountDesc);
+                const yearly = expenses.filter((e) => e.cadence === 'yearly').sort(byAmountDesc);
                 html += _detailTable('Monthly expenses', ['Name', 'Amount'],
                     monthly.map((e) => [e.name, gbp(e.amount_pence)]));
                 html += _detailTable('Yearly expenses', ['Name', 'Amount', 'Renewal date'],

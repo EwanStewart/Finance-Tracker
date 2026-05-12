@@ -201,7 +201,7 @@ def insert_expense(conn: sqlite3.Connection, expense: Expense) -> int:
 
 def list_expenses(conn: sqlite3.Connection) -> list[Expense]:
     rows = conn.execute(
-        f"SELECT {_EXPENSE_COLUMNS} FROM expenses ORDER BY id"
+        f"SELECT {_EXPENSE_COLUMNS} FROM expenses ORDER BY amount_pence DESC, id"
     ).fetchall()
     return [Expense(**dict(row)) for row in rows]
 
