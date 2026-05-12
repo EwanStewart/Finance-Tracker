@@ -109,7 +109,7 @@ def get_projections(
 def create_account(payload: AccountIn, db=Depends(get_db)) -> dict:
     account = Account(**payload.model_dump())
     account_id = insert_account(db, account)
-    capture_snapshot(db, trigger="write")
+    capture_snapshot(db, trigger="Write")
     return asdict(get_account(db, account_id))
 
 
@@ -119,7 +119,7 @@ def replace_account(account_id: int, payload: AccountIn, db=Depends(get_db)) -> 
     changed = update_account(db, account_id, account)
     if not changed:
         raise HTTPException(status_code=404, detail="account not found")
-    capture_snapshot(db, trigger="write")
+    capture_snapshot(db, trigger="Write")
     return asdict(get_account(db, account_id))
 
 
@@ -128,7 +128,7 @@ def remove_account(account_id: int, db=Depends(get_db)) -> Response:
     deleted = delete_account(db, account_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="account not found")
-    capture_snapshot(db, trigger="write")
+    capture_snapshot(db, trigger="Write")
     return Response(status_code=204)
 
 
@@ -141,7 +141,7 @@ def get_income(db=Depends(get_db)) -> list[dict]:
 def create_income(payload: IncomeIn, db=Depends(get_db)) -> dict:
     source = IncomeSource(**payload.model_dump())
     source_id = insert_income_source(db, source)
-    capture_snapshot(db, trigger="write")
+    capture_snapshot(db, trigger="Write")
     return asdict(get_income_source(db, source_id))
 
 
@@ -151,7 +151,7 @@ def replace_income(source_id: int, payload: IncomeIn, db=Depends(get_db)) -> dic
     changed = update_income_source(db, source_id, source)
     if not changed:
         raise HTTPException(status_code=404, detail="income source not found")
-    capture_snapshot(db, trigger="write")
+    capture_snapshot(db, trigger="Write")
     return asdict(get_income_source(db, source_id))
 
 
@@ -160,7 +160,7 @@ def remove_income(source_id: int, db=Depends(get_db)) -> Response:
     deleted = delete_income_source(db, source_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="income source not found")
-    capture_snapshot(db, trigger="write")
+    capture_snapshot(db, trigger="Write")
     return Response(status_code=204)
 
 
@@ -173,7 +173,7 @@ def get_expenses(db=Depends(get_db)) -> list[dict]:
 def create_expense(payload: ExpenseIn, db=Depends(get_db)) -> dict:
     expense = Expense(**payload.model_dump())
     expense_id = insert_expense(db, expense)
-    capture_snapshot(db, trigger="write")
+    capture_snapshot(db, trigger="Write")
     return asdict(get_expense(db, expense_id))
 
 
@@ -183,7 +183,7 @@ def replace_expense(expense_id: int, payload: ExpenseIn, db=Depends(get_db)) -> 
     changed = update_expense(db, expense_id, expense)
     if not changed:
         raise HTTPException(status_code=404, detail="expense not found")
-    capture_snapshot(db, trigger="write")
+    capture_snapshot(db, trigger="Write")
     return asdict(get_expense(db, expense_id))
 
 
@@ -192,7 +192,7 @@ def remove_expense(expense_id: int, db=Depends(get_db)) -> Response:
     deleted = delete_expense(db, expense_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="expense not found")
-    capture_snapshot(db, trigger="write")
+    capture_snapshot(db, trigger="Write")
     return Response(status_code=204)
 
 
@@ -218,7 +218,7 @@ def get_snapshots(db=Depends(get_db)) -> list[dict]:
 
 @app.post("/snapshots", status_code=201)
 def create_snapshot(payload: SnapshotIn, db=Depends(get_db)) -> dict:
-    snapshot = capture_snapshot(db, trigger="manual", label=payload.label)
+    snapshot = capture_snapshot(db, trigger="Manual", label=payload.label)
     return _snapshot_to_dict(snapshot)
 
 

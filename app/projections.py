@@ -33,14 +33,14 @@ class Expense:
     id: Optional[int] = None
 
 
-SnapshotTrigger = Literal["manual", "write"]
+SnapshotTrigger = Literal["Manual", "Write"]
 
 
 @dataclass(frozen=True)
 class Snapshot:
     taken_at: str
     payload: dict[str, Any] = field(default_factory=dict)
-    trigger: SnapshotTrigger = "manual"
+    trigger: SnapshotTrigger = "Manual"
     label: Optional[str] = None
     id: Optional[int] = None
 

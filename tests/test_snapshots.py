@@ -20,7 +20,7 @@ def test_insert_snapshot_stores_fields_and_returns_id():
         Snapshot(
             taken_at="2026-05-12T09:00:00Z",
             payload=payload,
-            trigger="manual",
+            trigger="Manual",
             label="opening",
         ),
     )
@@ -31,7 +31,7 @@ def test_insert_snapshot_stores_fields_and_returns_id():
         Snapshot(
             taken_at="2026-05-12T09:00:00Z",
             payload=payload,
-            trigger="manual",
+            trigger="Manual",
             label="opening",
             id=snap_id,
         )
@@ -80,11 +80,11 @@ def test_capture_snapshot_includes_full_state():
     )
 
     snapshot = capture_snapshot(
-        conn, trigger="manual", now_fn=lambda: "2026-05-12T09:00:00Z"
+        conn, trigger="Manual", now_fn=lambda: "2026-05-12T09:00:00Z"
     )
 
     assert snapshot.taken_at == "2026-05-12T09:00:00Z"
-    assert snapshot.trigger == "manual"
+    assert snapshot.trigger == "Manual"
     payload = snapshot.payload
     assert len(payload["accounts"]) == 1
     assert payload["accounts"][0]["name"] == "Cash ISA"
@@ -95,12 +95,12 @@ def test_capture_snapshot_includes_full_state():
 
 def test_capture_snapshot_write_inside_window_updates_latest():
     conn = connect(":memory:")
-    capture_snapshot(conn, trigger="write", now_fn=lambda: "2026-05-12T09:00:00Z")
+    capture_snapshot(conn, trigger="Write", now_fn=lambda: "2026-05-12T09:00:00Z")
     insert_account(conn, Account(name="Added", balance_pence=500))
 
     capture_snapshot(
         conn,
-        trigger="write",
+        trigger="Write",
         now_fn=lambda: "2026-05-12T09:00:30Z",
         debounce_seconds=60,
     )
@@ -113,11 +113,11 @@ def test_capture_snapshot_write_inside_window_updates_latest():
 
 def test_capture_snapshot_write_after_window_inserts_new():
     conn = connect(":memory:")
-    capture_snapshot(conn, trigger="write", now_fn=lambda: "2026-05-12T09:00:00Z")
+    capture_snapshot(conn, trigger="Write", now_fn=lambda: "2026-05-12T09:00:00Z")
 
     capture_snapshot(
         conn,
-        trigger="write",
+        trigger="Write",
         now_fn=lambda: "2026-05-12T09:02:00Z",
         debounce_seconds=60,
     )
@@ -127,11 +127,11 @@ def test_capture_snapshot_write_after_window_inserts_new():
 
 def test_capture_snapshot_manual_always_inserts():
     conn = connect(":memory:")
-    capture_snapshot(conn, trigger="write", now_fn=lambda: "2026-05-12T09:00:00Z")
+    capture_snapshot(conn, trigger="Write", now_fn=lambda: "2026-05-12T09:00:00Z")
 
     capture_snapshot(
         conn,
-        trigger="manual",
+        trigger="Manual",
         label="pay day",
         now_fn=lambda: "2026-05-12T09:00:30Z",
         debounce_seconds=60,
@@ -139,7 +139,7 @@ def test_capture_snapshot_manual_always_inserts():
 
     snapshots = list_snapshots(conn)
     assert len(snapshots) == 2
-    assert snapshots[1].trigger == "manual"
+    assert snapshots[1].trigger == "Manual"
     assert snapshots[1].label == "pay day"
 
 
@@ -147,20 +147,20 @@ def test_capture_snapshot_write_does_not_replace_manual_within_window():
     conn = connect(":memory:")
     capture_snapshot(
         conn,
-        trigger="manual",
+        trigger="Manual",
         label="opening",
         now_fn=lambda: "2026-05-12T09:00:00Z",
     )
 
     capture_snapshot(
         conn,
-        trigger="write",
+        trigger="Write",
         now_fn=lambda: "2026-05-12T09:00:30Z",
         debounce_seconds=60,
     )
 
     snapshots = list_snapshots(conn)
     assert len(snapshots) == 2
-    assert snapshots[0].trigger == "manual"
+    assert snapshots[0].trigger == "Manual"
     assert snapshots[0].label == "opening"
-    assert snapshots[1].trigger == "write"
+    assert snapshots[1].trigger == "Write"

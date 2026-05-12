@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS expenses (
 CREATE TABLE IF NOT EXISTS snapshots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     taken_at TEXT NOT NULL,
-    trigger TEXT NOT NULL DEFAULT 'manual' CHECK (trigger IN ('manual', 'write')),
+    trigger TEXT NOT NULL DEFAULT 'Manual' CHECK (trigger IN ('Manual', 'Write')),
     label TEXT,
     payload TEXT NOT NULL
 );
@@ -66,6 +66,47 @@ def _migrate(conn: sqlite3.Connection) -> None:
     if "renewal_date" not in expense_columns:
         conn.execute("ALTER TABLE expenses ADD COLUMN renewal_date TEXT")
         conn.commit()
+    _migrate_snapshot_trigger_case(conn)
+
+
+def _migrate_snapshot_trigger_case(conn: sqlite3.Connection) -> None:
+    ddl_row = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='snapshots'"
+    ).fetchone()
+    if ddl_row is None or "'manual'" not in ddl_row["sql"]:
+        return
+    rows = conn.execute(
+        "SELECT id, taken_at, trigger, label, payload FROM snapshots"
+    ).fetchall()
+    conn.executescript(
+        """
+        DROP TABLE snapshots;
+        CREATE TABLE snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            taken_at TEXT NOT NULL,
+            trigger TEXT NOT NULL DEFAULT 'Manual'
+                CHECK (trigger IN ('Manual', 'Write')),
+            label TEXT,
+            payload TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_snapshots_taken_at ON snapshots(taken_at);
+        """
+    )
+    conn.executemany(
+        "INSERT INTO snapshots (id, taken_at, trigger, label, payload) "
+        "VALUES (?, ?, ?, ?, ?)",
+        [
+            (
+                row["id"],
+                row["taken_at"],
+                row["trigger"].capitalize(),
+                row["label"],
+                row["payload"],
+            )
+            for row in rows
+        ],
+    )
+    conn.commit()
 
 
 INSERT_SQL = (
@@ -319,7 +360,7 @@ def build_snapshot_payload(conn: sqlite3.Connection) -> dict[str, Any]:
 
 def capture_snapshot(
     conn: sqlite3.Connection,
-    trigger: str = "manual",
+    trigger: str = "Manual",
     label: Optional[str] = None,
     now_fn: Callable[[], str] = _utcnow_iso,
     debounce_seconds: int = 60,
@@ -328,9 +369,9 @@ def capture_snapshot(
     payload = build_snapshot_payload(conn)
     previous = latest_snapshot(conn)
     should_replace = (
-        trigger == "write"
+        trigger == "Write"
         and previous is not None
-        and previous.trigger == "write"
+        and previous.trigger == "Write"
         and (_parse_iso(taken_at) - _parse_iso(previous.taken_at)).total_seconds()
         < debounce_seconds
     )

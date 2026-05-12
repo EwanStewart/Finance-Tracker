@@ -19,7 +19,7 @@ def test_post_snapshot_creates_manual_entry():
 
     assert response.status_code == 201
     body = response.json()
-    assert body["trigger"] == "manual"
+    assert body["trigger"] == "Manual"
     assert body["label"] == "pay day"
     assert "taken_at" in body
     assert body["payload"]["total_pence"] == 0
@@ -32,7 +32,7 @@ def test_post_snapshot_accepts_empty_body():
     response = client.post("/snapshots", json={})
 
     assert response.status_code == 201
-    assert response.json()["trigger"] == "manual"
+    assert response.json()["trigger"] == "Manual"
 
 
 def test_get_snapshots_returns_chronological_list():
@@ -87,7 +87,7 @@ def test_creating_account_triggers_snapshot():
 
     snapshots = list_snapshots(conn)
     assert len(snapshots) == 1
-    assert snapshots[0].trigger == "write"
+    assert snapshots[0].trigger == "Write"
     assert snapshots[0].payload["total_pence"] == 100_00
 
 
