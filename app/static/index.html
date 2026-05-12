@@ -122,6 +122,16 @@
             font-variant-numeric: tabular-nums;
         }
         tr.negative td.num.balance { color: var(--rbs-negative); }
+        .alert {
+            background: #fde9ed;
+            border: 1px solid var(--rbs-negative);
+            color: var(--rbs-negative);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        .alert strong { font-weight: 600; }
         tbody tr:last-child td { border-bottom: 0; }
         .horizons {
             display: grid;
@@ -356,6 +366,7 @@
         </section>
 
         <section class="tab-panel" id="tab-accounts">
+            <div id="allocation-alert" hidden></div>
             <div class="card">
                 <div class="card-head">
                     <h2>Savings</h2>
@@ -873,6 +884,25 @@
             );
         }
 
+        function renderAllocationAlert(accounts, summary) {
+            const el = document.getElementById('allocation-alert');
+            const allocated = accounts
+                .filter((a) => a.kind !== 'credit_card')
+                .reduce((sum, a) => sum + a.monthly_allocation_pence, 0);
+            const available = summary.available_to_save_pence;
+            if (allocated > available) {
+                const over = allocated - available;
+                el.className = 'alert';
+                el.innerHTML = `<strong>Allocations exceed budget by ${gbp(over)}.</strong> ` +
+                    `Monthly allocations total ${gbp(allocated)} but only ${gbp(available)} ` +
+                    `is available after income and expenses.`;
+                el.hidden = false;
+            } else {
+                el.hidden = true;
+                el.innerHTML = '';
+            }
+        }
+
         function renderAccounts(accounts) {
             const savingsBody = document.querySelector('#savings-accounts tbody');
             const cardsBody = document.querySelector('#credit-cards tbody');
@@ -939,6 +969,9 @@
             for (const id of ['income', 'savings-accounts', 'credit-cards', 'monthly-expenses', 'yearly-expenses', 'snapshots']) {
                 document.querySelector(`#${id} tbody`).innerHTML = '';
             }
+            const alert = document.getElementById('allocation-alert');
+            alert.hidden = true;
+            alert.innerHTML = '';
         }
 
         let historyChartInstance = null;
@@ -1109,12 +1142,13 @@
 
         async function refresh() {
             clearAll();
-            const [projections, accounts, income, expenses, snapshots] = await Promise.all([
+            const [projections, accounts, income, expenses, snapshots, summary] = await Promise.all([
                 fetch('/projections').then((r) => r.json()),
                 fetch('/accounts').then((r) => r.json()),
                 fetch('/income').then((r) => r.json()),
                 fetch('/expenses').then((r) => r.json()),
                 fetch('/snapshots').then((r) => r.json()),
+                fetch('/summary').then((r) => r.json()),
             ]);
             renderSummary(projections);
             renderHorizons(projections);
@@ -1122,6 +1156,7 @@
             renderIncome(income);
             renderExpenses(expenses);
             renderAccounts(accounts);
+            renderAllocationAlert(accounts, summary);
             allSnapshots = snapshots;
             renderHistory();
         }
