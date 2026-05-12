@@ -1,0 +1,12 @@
+{
+    auto_https off
+    admin off
+}
+
+http://finance.local {
+    reverse_proxy 127.0.0.1:8000
+}
+
+http://photovault.local {
+    reverse_proxy 127.0.0.1:5000
+}

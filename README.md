@@ -32,66 +32,53 @@ black app tests
 pylint app tests
 ```
 
-## Deploy to a Raspberry Pi (DietPi)
+## Deploy to a Raspberry Pi
+
+Runs as a systemd service under the `ewastewa` user, listening on port 8000. No reverse proxy. Set `PI_HOST` to whatever hostname or IP your Pi answers on (for example `photobox.local`).
 
 ### One-off bootstrap
 
-On the Pi, install dependencies and prepare the SSH deploy key:
+Install system dependencies:
 
 ```
-apt update && apt install -y python3 python3-venv python3-pip git nginx avahi-daemon
-sudo -u dietpi ssh-keygen -t ed25519 -N "" -f /home/dietpi/.ssh/id_finance_tracker -C "fipi-deploy"
-cat /home/dietpi/.ssh/id_finance_tracker.pub
+ssh "$PI_HOST" 'sudo apt update && sudo apt install -y python3 python3-venv python3-pip git'
 ```
 
-Add the printed public key as a **read-only deploy key** on the GitHub repo.
-
-Configure SSH on the Pi to use that key:
+Clone, build the virtualenv, and install Python dependencies:
 
 ```
-cat >> /home/dietpi/.ssh/config <<'EOF'
-Host github.com
-    HostName github.com
-    User git
-    IdentityFile /home/dietpi/.ssh/id_finance_tracker
-    IdentitiesOnly yes
-EOF
-chown dietpi:dietpi /home/dietpi/.ssh/config && chmod 600 /home/dietpi/.ssh/config
+ssh "$PI_HOST" '
+  git clone git@github.com:EwanStewart/Finance-Tracker.git ~/finance-tracker &&
+  python3 -m venv ~/finance-tracker/.venv &&
+  ~/finance-tracker/.venv/bin/pip install -r ~/finance-tracker/requirements.txt &&
+  mkdir -p ~/finance-tracker/data
+'
 ```
 
-Clone, install, and start:
-
-```
-install -d -o dietpi -g dietpi /opt
-sudo -u dietpi git clone git@github.com:EwanStewart/Finance-Tracker.git /tmp/ft-clone
-mv /tmp/ft-clone /opt/finance-tracker
-chown -R dietpi:dietpi /opt/finance-tracker
-sudo -u dietpi python3 -m venv /opt/finance-tracker/.venv
-sudo -u dietpi /opt/finance-tracker/.venv/bin/pip install -r /opt/finance-tracker/requirements.txt
-
-cp /opt/finance-tracker/deploy/finance-tracker.service /etc/systemd/system/
-cp /opt/finance-tracker/deploy/nginx-finance-tracker.conf /etc/nginx/sites-available/finance-tracker
-rm -f /etc/nginx/sites-enabled/default
-ln -sf /etc/nginx/sites-available/finance-tracker /etc/nginx/sites-enabled/finance-tracker
-
-systemctl daemon-reload
-systemctl enable --now finance-tracker
-systemctl reload nginx
-```
+If the Pi has no GitHub key, clone over HTTPS instead, or push a deploy key first.
 
 Copy the seeded database from the workstation (one-off):
 
 ```
-scp data/finance.db root@fipi:/tmp/finance.db
-ssh root@fipi 'install -d -o dietpi -g dietpi /opt/finance-tracker/data && mv /tmp/finance.db /opt/finance-tracker/data/ && chown dietpi:dietpi /opt/finance-tracker/data/finance.db && systemctl restart finance-tracker'
+scp data/finance.db "$PI_HOST":finance-tracker/data/finance.db
 ```
 
-The service is reachable at http://fipi.
+Install and start the service:
+
+```
+ssh "$PI_HOST" '
+  sudo cp ~/finance-tracker/deploy/finance-tracker.service /etc/systemd/system/ &&
+  sudo systemctl daemon-reload &&
+  sudo systemctl enable --now finance-tracker
+'
+```
+
+The service is reachable at `http://$PI_HOST:8000`.
 
 ### Updating
 
 ```
-ssh root@fipi /opt/finance-tracker/deploy/update.sh
+ssh "$PI_HOST" finance-tracker/deploy/update.sh
 ```
 
-That pulls the latest commit, refreshes dependencies, and restarts the service.
+That pulls the latest commit, refreshes dependencies, and restarts the service. Requires passwordless `sudo systemctl restart finance-tracker.service` for the `ewastewa` user.

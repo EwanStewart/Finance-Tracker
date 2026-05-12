@@ -5,14 +5,28 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=dietpi
-Group=dietpi
-WorkingDirectory=/opt/finance-tracker
-ExecStart=/opt/finance-tracker/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+User=ewastewa
+Group=ewastewa
+WorkingDirectory=/home/ewastewa/finance-tracker
+ExecStart=/home/ewastewa/finance-tracker/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal
 StandardError=journal
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+SystemCallArchitectures=native
+ReadWritePaths=/home/ewastewa/finance-tracker/data
 
 [Install]
 WantedBy=multi-user.target

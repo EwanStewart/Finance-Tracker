@@ -1,0 +1,13 @@
+[Unit]
+Description=mDNS CNAME alias %i.local
+After=avahi-daemon.service
+BindsTo=avahi-daemon.service
+
+[Service]
+Type=simple
+ExecStart=/home/ewastewa/finance-tracker/deploy/mdns-alias.sh %i
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
