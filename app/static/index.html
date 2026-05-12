@@ -472,6 +472,13 @@
                 </div>
                 <canvas id="history-chart" height="120"></canvas>
             </div>
+            <div class="card" id="snapshot-detail" hidden>
+                <div class="card-head">
+                    <h2 id="snapshot-detail-title">Snapshot detail</h2>
+                    <button class="btn btn-ghost" id="snapshot-detail-close">Close</button>
+                </div>
+                <div id="snapshot-detail-body"></div>
+            </div>
             <div class="card">
                 <h2>Snapshots</h2>
                 <div class="table-wrap">
@@ -989,6 +996,7 @@
             tbody.innerHTML = '';
             for (const snap of [...snapshots].reverse()) {
                 const row = tbody.insertRow();
+                row.style.cursor = 'pointer';
                 _labelledCell(row, 'Taken', false, formatTaken(snap.taken_at));
                 _labelledCell(row, 'Trigger', false, snap.trigger);
                 _labelledCell(row, 'Label', false, snap.label ?? '');
@@ -996,12 +1004,64 @@
                 const cell = row.insertCell();
                 cell.className = 'row-actions';
                 cell.innerHTML = '<button class="btn btn-danger">Delete</button>';
-                cell.querySelector('button').addEventListener('click', async () => {
+                const deleteBtn = cell.querySelector('button');
+                deleteBtn.addEventListener('click', async (event) => {
+                    event.stopPropagation();
                     if (!confirm('Delete this snapshot?')) return;
                     await apiDelete(`/snapshots/${snap.id}`);
                     refreshHistory();
                 });
+                row.addEventListener('click', () => showSnapshotDetail(snap));
             }
+        }
+
+        function _detailTable(title, headings, rows) {
+            if (!rows.length) return '';
+            const head = headings.map((h, i) => `<th${i > 0 ? ' class="num"' : ''}>${h}</th>`).join('');
+            const body = rows.map((cells) => {
+                const tds = cells.map((c, i) => `<td${i > 0 ? ' class="num"' : ''} data-label="${headings[i]}">${c}</td>`).join('');
+                return `<tr>${tds}</tr>`;
+            }).join('');
+            return `<h3 style="margin:1rem 0 0.5rem;font-size:1rem;color:var(--rbs-navy);">${title}</h3>` +
+                `<div class="table-wrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+        }
+
+        function showSnapshotDetail(snap) {
+            const panel = document.getElementById('snapshot-detail');
+            const title = document.getElementById('snapshot-detail-title');
+            const body = document.getElementById('snapshot-detail-body');
+            const labelText = snap.label ? ` — ${snap.label}` : '';
+            title.textContent = `${formatTaken(snap.taken_at)} (${snap.trigger})${labelText}`;
+            const accounts = snap.payload.accounts ?? [];
+            const income = snap.payload.income ?? [];
+            const expenses = snap.payload.expenses ?? [];
+            const savings = accounts.filter((a) => a.kind !== 'credit_card');
+            const cards = accounts.filter((a) => a.kind === 'credit_card');
+            const total = snap.payload.total_pence ?? 0;
+            let html = `<p style="margin:0 0 1rem;color:var(--rbs-muted);">Total at this point: <strong style="color:var(--rbs-text);">${gbp(total)}</strong></p>`;
+            if (!accounts.length && !income.length && !expenses.length) {
+                html += '<p style="color:var(--rbs-muted);">No detailed breakdown captured for this snapshot.</p>';
+            } else {
+                html += _detailTable('Savings', ['Name', 'Balance', 'Annual rate', 'Monthly allocation'],
+                    savings.map((a) => [a.name, gbp(a.balance_pence), `${(a.annual_rate_bp / 100).toFixed(2)}%`, gbp(a.monthly_allocation_pence)]));
+                html += _detailTable('Credit cards', ['Name', 'Balance'],
+                    cards.map((a) => [a.name, `<span style="color:var(--rbs-negative);">${gbp(a.balance_pence)}</span>`]));
+                html += _detailTable('Income', ['Source', 'Monthly'],
+                    income.map((i) => [i.name, gbp(i.monthly_amount_pence)]));
+                const monthly = expenses.filter((e) => e.cadence === 'monthly');
+                const yearly = expenses.filter((e) => e.cadence === 'yearly');
+                html += _detailTable('Monthly expenses', ['Name', 'Amount'],
+                    monthly.map((e) => [e.name, gbp(e.amount_pence)]));
+                html += _detailTable('Yearly expenses', ['Name', 'Amount'],
+                    yearly.map((e) => [e.name, gbp(e.amount_pence)]));
+            }
+            body.innerHTML = html;
+            panel.hidden = false;
+            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function hideSnapshotDetail() {
+            document.getElementById('snapshot-detail').hidden = true;
         }
 
         function renderHistory() {
@@ -1069,6 +1129,7 @@
         document.getElementById('add-yearly-expense').addEventListener('click', () => startAddExpense('yearly'));
         document.getElementById('snapshot-now').addEventListener('click', snapshotNow);
         document.getElementById('history-filter').addEventListener('change', renderHistory);
+        document.getElementById('snapshot-detail-close').addEventListener('click', hideSnapshotDetail);
         setupCustomHorizon();
         refresh();
     </script>
