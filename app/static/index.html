@@ -803,6 +803,11 @@
             cell.innerHTML = `<input class="cell-input" type="date" value="${value ?? ''}">`;
         }
 
+        function capitalise(value) {
+            if (!value) return '';
+            return value.charAt(0).toUpperCase() + value.slice(1);
+        }
+
         function formatRenewalDate(value) {
             if (!value) return '';
             const parts = value.split('-');
@@ -1054,7 +1059,7 @@
                 const row = tbody.insertRow();
                 row.style.cursor = 'pointer';
                 _labelledCell(row, 'Taken', false, formatTaken(snap.taken_at));
-                _labelledCell(row, 'Trigger', false, snap.trigger);
+                _labelledCell(row, 'Trigger', false, capitalise(snap.trigger));
                 _labelledCell(row, 'Label', false, snap.label ?? '');
                 _labelledCell(row, 'Total', true, gbp(snap.payload.total_pence ?? 0));
                 const cell = row.insertCell();
@@ -1087,7 +1092,7 @@
             const title = document.getElementById('snapshot-detail-title');
             const body = document.getElementById('snapshot-detail-body');
             const labelText = snap.label ? ` — ${snap.label}` : '';
-            title.textContent = `${formatTaken(snap.taken_at)} (${snap.trigger})${labelText}`;
+            title.textContent = `${formatTaken(snap.taken_at)} (${capitalise(snap.trigger)})${labelText}`;
             const accounts = snap.payload.accounts ?? [];
             const income = snap.payload.income ?? [];
             const expenses = snap.payload.expenses ?? [];
