@@ -1077,7 +1077,8 @@
         }
 
         async function snapshotNow() {
-            const label = prompt('Label for this snapshot (optional):', '') ?? '';
+            const label = prompt('Label for this snapshot (optional):', '');
+            if (label === null) return;
             await apiPost('/snapshots', { label: label.trim() || null });
             refreshHistory();
         }
