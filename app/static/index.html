@@ -932,7 +932,14 @@
         }
 
         function renderHistoryChart(snapshots) {
-            if (historyChartInstance) historyChartInstance.destroy();
+            const labels = snapshots.map((s) => s.taken_at.slice(0, 10));
+            const data = snapshots.map((s) => (s.payload.total_pence ?? 0) / 100);
+            if (historyChartInstance) {
+                historyChartInstance.data.labels = labels;
+                historyChartInstance.data.datasets[0].data = data;
+                historyChartInstance.update();
+                return;
+            }
             const navy = getComputedStyle(document.documentElement)
                 .getPropertyValue('--rbs-purple').trim();
             const fade = getComputedStyle(document.documentElement)
@@ -940,10 +947,10 @@
             historyChartInstance = new Chart(document.getElementById('history-chart'), {
                 type: 'line',
                 data: {
-                    labels: snapshots.map((s) => s.taken_at.slice(0, 10)),
+                    labels,
                     datasets: [{
                         label: 'Net wealth',
-                        data: snapshots.map((s) => (s.payload.total_pence ?? 0) / 100),
+                        data,
                         borderColor: navy,
                         backgroundColor: fade,
                         pointBackgroundColor: navy,
@@ -1040,6 +1047,9 @@
             });
             if (location.hash !== `#${name}`) {
                 history.replaceState(null, '', `#${name}`);
+            }
+            if (name === 'history' && historyChartInstance) {
+                historyChartInstance.resize();
             }
         }
         document.querySelectorAll('#tabs button').forEach((b) => {
