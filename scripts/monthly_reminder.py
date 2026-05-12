@@ -98,6 +98,7 @@ def send_email(api_key: str, from_addr: str, to_addr: str, today: datetime.date)
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
+            "User-Agent": "finance-tracker-reminder/1.0",
         },
     )
     try:
