@@ -83,3 +83,52 @@ def test_delete_expense_returns_false_when_missing():
     conn = connect(":memory:")
 
     assert delete_expense(conn, 99) is False
+
+
+def test_renewal_date_persists_for_yearly_expense():
+    conn = connect(":memory:")
+    expense = Expense(
+        name="Car Insurance",
+        amount_pence=700_00,
+        cadence="yearly",
+        renewal_date="2026-06-18",
+    )
+
+    expense_id = insert_expense(conn, expense)
+
+    assert get_expense(conn, expense_id).renewal_date == "2026-06-18"
+
+
+def test_renewal_date_defaults_to_none():
+    conn = connect(":memory:")
+    expense_id = insert_expense(
+        conn, Expense(name="Rent", amount_pence=200_00, cadence="monthly")
+    )
+
+    assert get_expense(conn, expense_id).renewal_date is None
+
+
+def test_update_expense_changes_renewal_date():
+    conn = connect(":memory:")
+    expense_id = insert_expense(
+        conn,
+        Expense(
+            name="Car Insurance",
+            amount_pence=700_00,
+            cadence="yearly",
+            renewal_date="2026-06-18",
+        ),
+    )
+
+    update_expense(
+        conn,
+        expense_id,
+        Expense(
+            name="Car Insurance",
+            amount_pence=700_00,
+            cadence="yearly",
+            renewal_date="2026-07-01",
+        ),
+    )
+
+    assert get_expense(conn, expense_id).renewal_date == "2026-07-01"

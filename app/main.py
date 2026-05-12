@@ -53,6 +53,7 @@ class ExpenseIn(BaseModel):
     name: str
     amount_pence: int
     cadence: Literal["monthly", "yearly"]
+    renewal_date: str | None = None
 
 
 class SnapshotIn(BaseModel):

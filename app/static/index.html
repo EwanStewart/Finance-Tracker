@@ -448,6 +448,7 @@
                                 <th>Category</th>
                                 <th class="num">Amount</th>
                                 <th class="num">Monthly equivalent</th>
+                                <th>Renewal date</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -647,16 +648,22 @@
                 placeholder.setAttribute('data-label', 'Monthly equivalent');
                 placeholder.className = 'num';
                 placeholder.textContent = '';
+                _labelledDateInputCell(row, 'Renewal date', expense?.renewal_date ?? '');
             }
             addEditActions(
                 row,
                 () => {
-                    const inputs = row.querySelectorAll('input');
-                    onSave({
-                        name: inputs[0].value.trim(),
+                    const textInputs = row.querySelectorAll('input[type="text"]');
+                    const dateInput = row.querySelector('input[type="date"]');
+                    const payload = {
+                        name: textInputs[0].value.trim(),
                         cadence,
-                        amount_pence: toPence(inputs[1].value),
-                    });
+                        amount_pence: toPence(textInputs[1].value),
+                    };
+                    if (cadence === 'yearly') {
+                        payload.renewal_date = dateInput.value || null;
+                    }
+                    onSave(payload);
                 },
                 onCancel
             );
@@ -668,6 +675,7 @@
             _labelledCell(row, 'Amount', true, gbp(expense.amount_pence));
             if (expense.cadence === 'yearly') {
                 _labelledCell(row, 'Monthly equivalent', true, gbp(Math.round(expense.amount_pence / 12)));
+                _labelledCell(row, 'Renewal date', false, formatRenewalDate(expense.renewal_date));
             }
             addRowActions(
                 row,
@@ -776,6 +784,21 @@
             const extra = isNum ? 'inputmode="decimal" autocomplete="off"' : '';
             const ph = placeholder ? `placeholder="${placeholder}"` : '';
             cell.innerHTML = `<input class="${cls}" type="text" ${extra} value="${value ?? ''}" ${ph}>`;
+        }
+
+        function _labelledDateInputCell(row, label, value) {
+            const cell = row.insertCell();
+            cell.setAttribute('data-label', label);
+            cell.innerHTML = `<input class="cell-input" type="date" value="${value ?? ''}">`;
+        }
+
+        function formatRenewalDate(value) {
+            if (!value) return '';
+            const parts = value.split('-');
+            if (parts.length !== 3) return value;
+            const date = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+            if (Number.isNaN(date.getTime())) return value;
+            return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
         }
 
         function renderSavingsEditRow(tbody, account, onSave, onCancel) {
@@ -1052,8 +1075,8 @@
                 const yearly = expenses.filter((e) => e.cadence === 'yearly');
                 html += _detailTable('Monthly expenses', ['Name', 'Amount'],
                     monthly.map((e) => [e.name, gbp(e.amount_pence)]));
-                html += _detailTable('Yearly expenses', ['Name', 'Amount'],
-                    yearly.map((e) => [e.name, gbp(e.amount_pence)]));
+                html += _detailTable('Yearly expenses', ['Name', 'Amount', 'Renewal date'],
+                    yearly.map((e) => [e.name, gbp(e.amount_pence), formatRenewalDate(e.renewal_date)]));
             }
             body.innerHTML = html;
             panel.hidden = false;

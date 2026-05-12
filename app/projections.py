@@ -29,6 +29,7 @@ class Expense:
     name: str
     amount_pence: int
     cadence: Cadence
+    renewal_date: Optional[str] = None
     id: Optional[int] = None
 
 

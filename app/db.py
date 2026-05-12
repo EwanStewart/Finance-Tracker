@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS expenses (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     amount_pence INTEGER NOT NULL,
-    cadence TEXT NOT NULL CHECK (cadence IN ('monthly', 'yearly'))
+    cadence TEXT NOT NULL CHECK (cadence IN ('monthly', 'yearly')),
+    renewal_date TEXT
 );
 
 CREATE TABLE IF NOT EXISTS snapshots (
@@ -51,13 +52,19 @@ def connect(path: Union[str, Path]) -> sqlite3.Connection:
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
-    columns = [
+    account_columns = [
         row["name"] for row in conn.execute("PRAGMA table_info(accounts)").fetchall()
     ]
-    if "kind" not in columns:
+    if "kind" not in account_columns:
         conn.execute(
             "ALTER TABLE accounts ADD COLUMN kind TEXT NOT NULL DEFAULT 'savings'"
         )
+        conn.commit()
+    expense_columns = [
+        row["name"] for row in conn.execute("PRAGMA table_info(expenses)").fetchall()
+    ]
+    if "renewal_date" not in expense_columns:
+        conn.execute("ALTER TABLE expenses ADD COLUMN renewal_date TEXT")
         conn.commit()
 
 
@@ -171,13 +178,22 @@ def delete_income_source(conn: sqlite3.Connection, source_id: int) -> bool:
 
 
 EXPENSE_INSERT_SQL = (
-    "INSERT INTO expenses (name, amount_pence, cadence) VALUES (?, ?, ?)"
+    "INSERT INTO expenses (name, amount_pence, cadence, renewal_date) "
+    "VALUES (?, ?, ?, ?)"
 )
+
+_EXPENSE_COLUMNS = "id, name, amount_pence, cadence, renewal_date"
 
 
 def insert_expense(conn: sqlite3.Connection, expense: Expense) -> int:
     cursor = conn.execute(
-        EXPENSE_INSERT_SQL, (expense.name, expense.amount_pence, expense.cadence)
+        EXPENSE_INSERT_SQL,
+        (
+            expense.name,
+            expense.amount_pence,
+            expense.cadence,
+            expense.renewal_date,
+        ),
     )
     conn.commit()
     return cursor.lastrowid
@@ -185,14 +201,14 @@ def insert_expense(conn: sqlite3.Connection, expense: Expense) -> int:
 
 def list_expenses(conn: sqlite3.Connection) -> list[Expense]:
     rows = conn.execute(
-        "SELECT id, name, amount_pence, cadence FROM expenses ORDER BY id"
+        f"SELECT {_EXPENSE_COLUMNS} FROM expenses ORDER BY id"
     ).fetchall()
     return [Expense(**dict(row)) for row in rows]
 
 
 def get_expense(conn: sqlite3.Connection, expense_id: int) -> Optional[Expense]:
     row = conn.execute(
-        "SELECT id, name, amount_pence, cadence FROM expenses WHERE id = ?",
+        f"SELECT {_EXPENSE_COLUMNS} FROM expenses WHERE id = ?",
         (expense_id,),
     ).fetchone()
     return Expense(**dict(row)) if row is not None else None
@@ -200,8 +216,15 @@ def get_expense(conn: sqlite3.Connection, expense_id: int) -> Optional[Expense]:
 
 def update_expense(conn: sqlite3.Connection, expense_id: int, expense: Expense) -> bool:
     cursor = conn.execute(
-        "UPDATE expenses SET name = ?, amount_pence = ?, cadence = ? WHERE id = ?",
-        (expense.name, expense.amount_pence, expense.cadence, expense_id),
+        "UPDATE expenses SET name = ?, amount_pence = ?, cadence = ?, "
+        "renewal_date = ? WHERE id = ?",
+        (
+            expense.name,
+            expense.amount_pence,
+            expense.cadence,
+            expense.renewal_date,
+            expense_id,
+        ),
     )
     conn.commit()
     return cursor.rowcount > 0
