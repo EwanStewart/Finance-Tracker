@@ -457,6 +457,12 @@
         const gbp = (pence) => new Intl.NumberFormat('en-GB', {
             style: 'currency', currency: 'GBP'
         }).format(pence / 100);
+        const parseMoney = (value) => {
+            const cleaned = String(value ?? '').replace(/[£$€,\s]/g, '');
+            const n = parseFloat(cleaned);
+            return Number.isFinite(n) ? n : 0;
+        };
+        const toPence = (value) => Math.round(parseMoney(value) * 100);
         const gbpShort = (pence) => new Intl.NumberFormat('en-GB', {
             style: 'currency', currency: 'GBP', maximumFractionDigits: 0
         }).format(pence / 100);
@@ -540,7 +546,7 @@
                     const inputs = row.querySelectorAll('input');
                     onSave({
                         name: inputs[0].value.trim(),
-                        monthly_amount_pence: Math.round(parseFloat(inputs[1].value || '0') * 100),
+                        monthly_amount_pence: toPence(inputs[1].value),
                     });
                 },
                 onCancel
@@ -600,12 +606,11 @@
             addEditActions(
                 row,
                 () => {
-                    const name = row.querySelector('input[type=text]').value.trim();
-                    const amount = row.querySelector('input[type=number]').value;
+                    const inputs = row.querySelectorAll('input');
                     onSave({
-                        name,
+                        name: inputs[0].value.trim(),
                         cadence,
-                        amount_pence: Math.round(parseFloat(amount || '0') * 100),
+                        amount_pence: toPence(inputs[1].value),
                     });
                 },
                 onCancel
@@ -700,9 +705,9 @@
             const inputs = row.querySelectorAll('input');
             return {
                 name: inputs[0].value.trim(),
-                balance_pence: Math.round(parseFloat(inputs[1].value || '0') * 100),
-                annual_rate_bp: Math.round(parseFloat(inputs[2].value || '0') * 100),
-                monthly_allocation_pence: Math.round(parseFloat(inputs[3].value || '0') * 100),
+                balance_pence: toPence(inputs[1].value),
+                annual_rate_bp: toPence(inputs[2].value),
+                monthly_allocation_pence: toPence(inputs[3].value),
                 kind: 'savings',
             };
         }
@@ -711,7 +716,7 @@
             const inputs = row.querySelectorAll('input');
             return {
                 name: inputs[0].value.trim(),
-                balance_pence: Math.round(parseFloat(inputs[1].value || '0') * 100),
+                balance_pence: toPence(inputs[1].value),
                 annual_rate_bp: 0,
                 monthly_allocation_pence: 0,
                 kind: 'credit_card',
@@ -723,10 +728,9 @@
             cell.setAttribute('data-label', label);
             if (isNum) cell.className = 'num';
             const cls = isNum ? 'cell-input num' : 'cell-input';
-            const type = isNum ? 'number' : 'text';
-            const step = isNum ? 'step="0.01"' : '';
+            const extra = isNum ? 'inputmode="decimal" autocomplete="off"' : '';
             const ph = placeholder ? `placeholder="${placeholder}"` : '';
-            cell.innerHTML = `<input class="${cls}" type="${type}" ${step} value="${value ?? ''}" ${ph}>`;
+            cell.innerHTML = `<input class="${cls}" type="text" ${extra} value="${value ?? ''}" ${ph}>`;
         }
 
         function renderSavingsEditRow(tbody, account, onSave, onCancel) {
