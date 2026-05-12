@@ -9,8 +9,6 @@ on:
         description: "Send the email even if today is not the first working day"
         type: boolean
         default: false
-  push:
-    paths: ["scripts/monthly_reminder.py"]
 
 jobs:
   remind:
@@ -25,5 +23,5 @@ jobs:
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           TO_EMAIL: ${{ secrets.REMINDER_TO_EMAIL }}
-          FORCE_SEND: ${{ inputs.force || github.event_name == 'push' }}
+          FORCE_SEND: ${{ inputs.force }}
         run: python -m scripts.monthly_reminder
