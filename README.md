@@ -12,12 +12,6 @@ The Overview tab shows today's net wealth and a chart projecting balance over th
 
 The Accounts tab manages savings and credit cards. The Income tab lists each source with its monthly amount. The Expenses tab splits monthly and yearly outgoings. The yearly table also shows each item's monthly equivalent.
 
-Money inputs strip out:
-
-- currency symbols (`£`, `$`, `€`)
-- commas
-- whitespace
-
 ## Run locally
 
 ```bash
@@ -50,5 +44,3 @@ ssh "$PI_HOST" '
   sudo systemctl enable --now finance-tracker
 '
 ```
-
-The service listens on port 8000.
