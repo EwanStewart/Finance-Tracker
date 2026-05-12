@@ -106,11 +106,15 @@ def send_email(api_key: str, from_addr: str, to_addr: str, today: datetime.date)
 
 def main() -> int:
     today = today_in_london()
-    holidays = fetch_bank_holidays()
-    target = first_working_day_of_month(today.year, today.month, holidays)
-    if today != target:
-        print(f"today {today.isoformat()} != first working day {target.isoformat()}; skipping")
-        return 0
+    force = os.environ.get("FORCE_SEND", "").lower() == "true"
+    if not force:
+        holidays = fetch_bank_holidays()
+        target = first_working_day_of_month(today.year, today.month, holidays)
+        if today != target:
+            print(f"today {today.isoformat()} != first working day {target.isoformat()}; skipping")
+            return 0
+    else:
+        print("FORCE_SEND set; bypassing date check")
     api_key = os.environ["RESEND_API_KEY"]
     from_addr = os.environ.get("RESEND_FROM", "onboarding@resend.dev")
     to_addr = os.environ["TO_EMAIL"]
