@@ -100,8 +100,13 @@ def send_email(api_key: str, from_addr: str, to_addr: str, today: datetime.date)
             "Content-Type": "application/json",
         },
     )
-    with urllib.request.urlopen(request, timeout=15) as response:
-        print(f"resend status={response.status} body={response.read().decode()}")
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            print(f"resend status={response.status} body={response.read().decode()}")
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode(errors="replace")
+        print(f"resend HTTPError {exc.code}: {body}", file=sys.stderr)
+        raise
 
 
 def main() -> int:
