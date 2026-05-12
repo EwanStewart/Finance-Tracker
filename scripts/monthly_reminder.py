@@ -52,7 +52,7 @@ def render_email(today: datetime.date) -> tuple[str, str, str]:
     subject = f"Finance Tracker: snapshot reminder for {this_month}"
     text = (
         f"It's the first working day of {this_month}.\n\n"
-        "Open https://finance.local, switch to the History tab, "
+        "Open http://finance.local, switch to the History tab, "
         "and click Snapshot now to capture this month's state.\n\n"
         f"Suggested label: \"End of {last_month}\"."
     )
@@ -72,7 +72,7 @@ def render_email(today: datetime.date) -> tuple[str, str, str]:
       <p style="margin:0 0 28px;color:#5f6770;font-size:14px;line-height:1.5;">
         Suggested label: <span style="color:#1a1a1a;font-weight:600;">End of {last_month}</span>
       </p>
-      <a href="https://finance.local/#history" style="display:inline-block;background:#0a2240;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:4px;font-weight:600;font-size:14px;">Open History tab</a>
+      <a href="http://finance.local/#history" style="display:inline-block;background:#0a2240;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:4px;font-weight:600;font-size:14px;">Open History tab</a>
     </td></tr>
     <tr><td style="padding:16px 24px;color:#5f6770;font-size:12px;text-align:center;">
       Sent by the Finance Tracker monthly reminder workflow.
