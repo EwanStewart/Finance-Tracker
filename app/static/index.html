@@ -202,6 +202,7 @@
         .fund .change { margin-left: 0.5rem; font-weight: 600; }
         .fund .change.up { color: var(--rbs-positive); }
         .fund .change.down { color: var(--rbs-negative); }
+        .fund .change.flat { color: var(--rbs-muted); }
         .fund .meta {
             color: var(--rbs-muted);
             font-size: 0.85rem;
@@ -385,7 +386,7 @@
             </div>
             <div class="card">
                 <div class="card-head">
-                    <h2>Fidelity Index World Fund</h2>
+                    <h2 id="fund-name">Fidelity Index World Fund</h2>
                     <a class="fund-link" href="https://www.fidelity.co.uk/factsheet-data/factsheet/GB00BJS8SJ34-fidelity-index-world-fund-p-acc/key-statistics" target="_blank" rel="noopener">Factsheet</a>
                 </div>
                 <div class="fund" id="fund"><div class="meta">Loading price&hellip;</div></div>
@@ -574,38 +575,72 @@
         }
 
         const pencePrice = (value) => `${value.toFixed(2)}p`;
-        const signed = (value, format) => (value >= 0 ? '+' : '−') + format(Math.abs(value));
+        const percentValue = (value) => `${value.toFixed(2)}%`;
+        const signed = (value, format) => {
+            const mark = value > 0 ? '+' : (value < 0 ? '−' : '');
+            return mark + format(Math.abs(value));
+        };
 
         function pricedOnLabel(pricedAt) {
             const parsed = new Date(String(pricedAt).replace(' ', 'T'));
-            if (Number.isNaN(parsed.getTime())) return String(pricedAt);
-            return parsed.toLocaleDateString('en-GB', {
-                day: 'numeric', month: 'short', year: 'numeric'
-            });
+            let label;
+            if (!pricedAt) {
+                label = 'Price date unknown';
+            } else if (Number.isNaN(parsed.getTime())) {
+                label = `Priced ${pricedAt}`;
+            } else {
+                label = 'Priced ' + parsed.toLocaleDateString('en-GB', {
+                    day: 'numeric', month: 'short', year: 'numeric'
+                });
+            }
+            return label;
+        }
+
+        function changeDirection(value) {
+            let direction = 'flat';
+            if (value > 0) direction = 'up';
+            if (value < 0) direction = 'down';
+            return direction;
+        }
+
+        function fundMetaText(fund) {
+            const priced = pricedOnLabel(fund.priced_at);
+            return fund.stale ? `${priced}. Today's update failed.` : priced;
+        }
+
+        function setFundMessage(text) {
+            const message = document.createElement('div');
+            message.className = 'meta';
+            message.textContent = text;
+            document.getElementById('fund').replaceChildren(message);
         }
 
         function renderFundPrice(fund) {
-            const root = document.getElementById('fund');
-            const direction = fund.change_pence >= 0 ? 'up' : 'down';
-            const change = `${signed(fund.change_pence, pencePrice)} ` +
-                `(${signed(fund.change_percent, (v) => v.toFixed(2) + '%')})`;
-            const meta = fund.stale
-                ? `Priced ${pricedOnLabel(fund.priced_at)} — today's update could not be fetched`
-                : `Priced ${pricedOnLabel(fund.priced_at)}`;
-            root.innerHTML =
-                `<div><span class="price">${pencePrice(fund.price_pence)}</span>` +
-                `<span class="change ${direction}">${change}</span></div>` +
-                `<div class="meta">${fund.name} · ${meta}</div>`;
+            const price = document.createElement('span');
+            price.className = 'price';
+            price.textContent = pencePrice(fund.price_pence);
+            const change = document.createElement('span');
+            change.className = `change ${changeDirection(fund.change_pence)}`;
+            change.textContent = `${signed(fund.change_pence, pencePrice)} ` +
+                `(${signed(fund.change_percent, percentValue)})`;
+            const row = document.createElement('div');
+            row.append(price, change);
+            const meta = document.createElement('div');
+            meta.className = 'meta';
+            meta.textContent = fundMetaText(fund);
+            document.getElementById('fund').replaceChildren(row, meta);
+            if (fund.name) {
+                document.getElementById('fund-name').textContent = fund.name;
+            }
         }
 
         async function loadFundPrice() {
-            const root = document.getElementById('fund');
             try {
                 const response = await fetch('/fund-price');
                 if (!response.ok) throw new Error(`status ${response.status}`);
                 renderFundPrice(await response.json());
             } catch (error) {
-                root.innerHTML = '<div class="meta">Price unavailable right now.</div>';
+                setFundMessage('Price unavailable right now.');
             }
         }
 
