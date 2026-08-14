@@ -1,0 +1,14 @@
+[Unit]
+Description=Back up the Finance Tracker database
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=ewastewa
+Group=ewastewa
+WorkingDirectory=/home/ewastewa/finance-tracker
+ExecStart=/home/ewastewa/finance-tracker/.venv/bin/python -m scripts.backup_db
+# Set BACKUP_REMOTE here to mirror off the SD card, for example:
+# Environment=BACKUP_REMOTE=ewastewa@laptop:finance-backups/
+StandardOutput=journal
+StandardError=journal
