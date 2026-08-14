@@ -73,7 +73,7 @@ class SnapshotIn(BaseModel):
     label: str | None = None
 
 
-DEFAULT_DB_PATH = Path("data/finance.db")
+DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent / "data" / "finance.db"
 DEFAULT_HORIZONS_MONTHS = [0, 1, 3, 6, 12, 24, 60]
 STATIC_DIR = Path(__file__).parent / "static"
 
