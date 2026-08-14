@@ -82,44 +82,39 @@ def _migrate(conn: sqlite3.Connection) -> None:
     _migrate_snapshot_trigger_case(conn)
 
 
+TRIGGER_CASE_REWRITE = """
+BEGIN;
+ALTER TABLE snapshots RENAME TO snapshots_old;
+CREATE TABLE snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    taken_at TEXT NOT NULL,
+    trigger TEXT NOT NULL DEFAULT 'Manual'
+        CHECK (trigger IN ('Manual', 'Write')),
+    label TEXT,
+    payload TEXT NOT NULL
+);
+INSERT INTO snapshots (id, taken_at, trigger, label, payload)
+    SELECT id, taken_at,
+        UPPER(SUBSTR(trigger, 1, 1)) || LOWER(SUBSTR(trigger, 2)),
+        label, payload
+    FROM snapshots_old;
+DROP TABLE snapshots_old;
+CREATE INDEX IF NOT EXISTS idx_snapshots_taken_at ON snapshots(taken_at);
+COMMIT;
+"""
+
+
 def _migrate_snapshot_trigger_case(conn: sqlite3.Connection) -> None:
+    """Recase legacy 'manual' / 'write' triggers.
+
+    The rewrite runs as one transaction so a power cut cannot leave the
+    snapshot history half copied.
+    """
     ddl_row = conn.execute(
         "SELECT sql FROM sqlite_master WHERE type='table' AND name='snapshots'"
     ).fetchone()
-    if ddl_row is None or "'manual'" not in ddl_row["sql"]:
-        return
-    rows = conn.execute(
-        "SELECT id, taken_at, trigger, label, payload FROM snapshots"
-    ).fetchall()
-    conn.executescript(
-        """
-        DROP TABLE snapshots;
-        CREATE TABLE snapshots (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            taken_at TEXT NOT NULL,
-            trigger TEXT NOT NULL DEFAULT 'Manual'
-                CHECK (trigger IN ('Manual', 'Write')),
-            label TEXT,
-            payload TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_snapshots_taken_at ON snapshots(taken_at);
-        """
-    )
-    conn.executemany(
-        "INSERT INTO snapshots (id, taken_at, trigger, label, payload) "
-        "VALUES (?, ?, ?, ?, ?)",
-        [
-            (
-                row["id"],
-                row["taken_at"],
-                row["trigger"].capitalize(),
-                row["label"],
-                row["payload"],
-            )
-            for row in rows
-        ],
-    )
-    conn.commit()
+    if ddl_row is not None and "'manual'" in ddl_row["sql"]:
+        conn.executescript(TRIGGER_CASE_REWRITE)
 
 
 INSERT_SQL = (

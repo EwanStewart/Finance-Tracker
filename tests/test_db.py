@@ -7,6 +7,7 @@ from app.db import (
     get_account,
     insert_account,
     list_accounts,
+    list_snapshots,
     replace_accounts,
     update_account,
 )
@@ -140,3 +141,48 @@ def test_kind_migration_adds_column_to_legacy_database(tmp_path):
     accounts = list_accounts(conn)
     assert len(accounts) == 1
     assert accounts[0].kind == "savings"
+
+
+LEGACY_SNAPSHOT_SCHEMA = (
+    "CREATE TABLE snapshots ("
+    "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+    "taken_at TEXT NOT NULL,"
+    "trigger TEXT NOT NULL DEFAULT 'manual'"
+    " CHECK (trigger IN ('manual', 'write')),"
+    "label TEXT,"
+    "payload TEXT NOT NULL"
+    ");"
+    "CREATE INDEX idx_snapshots_taken_at ON snapshots(taken_at);"
+    "INSERT INTO snapshots (id, taken_at, trigger, label, payload) VALUES "
+    "(1, '2026-01-01T00:00:00Z', 'manual', 'New year', '{\"total_pence\": 5}'),"
+    "(2, '2026-01-02T00:00:00Z', 'write', NULL, '{\"total_pence\": 7}');"
+)
+
+
+def test_trigger_case_migration_keeps_every_snapshot(tmp_path):
+    db = tmp_path / "legacy.db"
+    raw = sqlite3.connect(db)
+    raw.executescript(LEGACY_SNAPSHOT_SCHEMA)
+    raw.commit()
+    raw.close()
+
+    snapshots = list_snapshots(connect(db))
+
+    assert [(s.id, s.trigger, s.label) for s in snapshots] == [
+        (1, "Manual", "New year"),
+        (2, "Write", None),
+    ]
+    assert snapshots[1].payload == {"total_pence": 7}
+
+
+def test_trigger_case_migration_leaves_a_migrated_database_alone(tmp_path):
+    db = tmp_path / "legacy.db"
+    raw = sqlite3.connect(db)
+    raw.executescript(LEGACY_SNAPSHOT_SCHEMA)
+    raw.commit()
+    raw.close()
+    connect(db).close()
+
+    snapshots = list_snapshots(connect(db))
+
+    assert len(snapshots) == 2
