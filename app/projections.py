@@ -62,7 +62,9 @@ def project_balance(
     return result
 
 
-def project_total(accounts: Iterable[Account], months: int) -> int:
+def project_total(
+    accounts: Iterable[Account], months: int, surplus_pence: int = 0
+) -> int:
     total = sum(
         project_balance(
             principal_pence=account.balance_pence,
@@ -72,7 +74,14 @@ def project_total(accounts: Iterable[Account], months: int) -> int:
         )
         for account in accounts
     )
-    return total
+    return total + surplus_pence * months
+
+
+def unallocated_surplus(
+    accounts: Iterable[Account], available_to_save_pence: int
+) -> int:
+    allocated = sum(account.monthly_allocation_pence for account in accounts)
+    return max(0, available_to_save_pence - allocated)
 
 
 def monthly_summary(

@@ -78,6 +78,20 @@ def test_get_projections_uses_default_horizons_when_no_param():
     assert returned_months == [0, 1, 3, 6, 12, 24, 60]
 
 
+def test_get_projections_includes_unallocated_surplus():
+    conn = connect(":memory:")
+    insert_account(
+        conn,
+        Account(name="A", balance_pence=0, monthly_allocation_pence=100_00),
+    )
+    insert_income_source(conn, IncomeSource(name="Salary", monthly_amount_pence=500_00))
+    client = _client_with_db(conn)
+
+    response = client.get("/projections?months=12")
+
+    assert response.json() == [{"months": 12, "total_pence": 12 * 500_00}]
+
+
 def test_index_serves_html_with_chart_canvas():
     client = TestClient(app)
 

@@ -5,6 +5,7 @@ from app.projections import (
     monthly_summary,
     project_balance,
     project_total,
+    unallocated_surplus,
 )
 
 
@@ -84,6 +85,37 @@ def test_project_total_handles_negative_balances():
     result = project_total(accounts, months=12)
 
     assert result == 400_00
+
+
+def test_project_total_accumulates_unallocated_surplus_as_cash():
+    accounts = [
+        Account(
+            name="A", balance_pence=100_00, annual_rate_bp=0, monthly_allocation_pence=0
+        )
+    ]
+
+    result = project_total(accounts, months=12, surplus_pence=50_00)
+
+    assert result == 100_00 + 12 * 50_00
+
+
+def test_unallocated_surplus_is_what_is_left_after_allocations():
+    accounts = [
+        Account(name="A", balance_pence=0, monthly_allocation_pence=300_00),
+        Account(name="B", balance_pence=0, monthly_allocation_pence=200_00),
+    ]
+
+    result = unallocated_surplus(accounts, available_to_save_pence=800_00)
+
+    assert result == 300_00
+
+
+def test_unallocated_surplus_never_goes_negative_when_over_allocated():
+    accounts = [Account(name="A", balance_pence=0, monthly_allocation_pence=900_00)]
+
+    result = unallocated_surplus(accounts, available_to_save_pence=800_00)
+
+    assert result == 0
 
 
 def test_monthly_summary_is_zero_when_no_data():

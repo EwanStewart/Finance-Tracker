@@ -38,6 +38,7 @@ from app.projections import (
     IncomeSource,
     monthly_summary,
     project_total,
+    unallocated_surplus,
 )
 
 
@@ -103,8 +104,12 @@ def get_projections(
 ) -> list[dict]:
     horizons = _parse_horizons(months)
     accounts = list_accounts(db)
+    surplus = _monthly_surplus(db, accounts)
     points = [
-        {"months": horizon, "total_pence": project_total(accounts, horizon)}
+        {
+            "months": horizon,
+            "total_pence": project_total(accounts, horizon, surplus),
+        }
         for horizon in horizons
     ]
     return points
@@ -238,9 +243,18 @@ def get_fund(db=Depends(get_db)) -> dict:
     return result
 
 
+def _monthly_surplus(db, accounts) -> int:
+    summary = monthly_summary(list_income_sources(db), list_expenses(db))
+    return unallocated_surplus(accounts, summary["available_to_save_pence"])
+
+
 @app.get("/summary")
 def get_summary(db=Depends(get_db)) -> dict:
-    return monthly_summary(list_income_sources(db), list_expenses(db))
+    summary = monthly_summary(list_income_sources(db), list_expenses(db))
+    summary["unallocated_surplus_pence"] = unallocated_surplus(
+        list_accounts(db), summary["available_to_save_pence"]
+    )
+    return summary
 
 
 def _snapshot_to_dict(snapshot) -> dict:
