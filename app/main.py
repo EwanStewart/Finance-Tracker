@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from app.db import (
     capture_snapshot,
@@ -48,6 +48,13 @@ class AccountIn(BaseModel):
     annual_rate_bp: int = 0
     monthly_allocation_pence: int = 0
     kind: Literal["savings", "credit_card"] = "savings"
+
+    @model_validator(mode="after")
+    def card_balance_is_debt(self) -> "AccountIn":
+        """A credit card balance is money owed, so it is always held negative."""
+        if self.kind == "credit_card" and self.balance_pence > 0:
+            self.balance_pence = -self.balance_pence
+        return self
 
 
 class IncomeIn(BaseModel):

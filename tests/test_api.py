@@ -92,6 +92,19 @@ def test_get_projections_includes_unallocated_surplus():
     assert response.json() == [{"months": 12, "total_pence": 12 * 500_00}]
 
 
+def test_post_credit_card_stores_a_positive_balance_as_debt():
+    conn = connect(":memory:")
+    client = _client_with_db(conn)
+
+    response = client.post(
+        "/accounts",
+        json={"name": "Card", "balance_pence": 500_00, "kind": "credit_card"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["balance_pence"] == -500_00
+
+
 def test_index_serves_html_with_chart_canvas():
     client = TestClient(app)
 
