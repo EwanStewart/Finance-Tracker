@@ -81,7 +81,7 @@ def parse_price(html: str, isin: str = FUND_ISIN) -> FundPrice:
     return result
 
 
-def fetch_page(url: str = FACTSHEET_URL, timeout: int = 15) -> str:
+def fetch_page(url: str = FACTSHEET_URL, timeout: int = 5) -> str:
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(request, timeout=timeout) as response:
         result = response.read().decode("utf-8", errors="replace")
