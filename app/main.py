@@ -293,9 +293,16 @@ def remove_snapshot(snapshot_id: int, db=Depends(get_db)) -> Response:
     return Response(status_code=204)
 
 
-def _parse_horizons(value) -> list[int]:
+def _parse_horizons(value: Optional[str]) -> list[int]:
     if value is None:
         horizons = list(DEFAULT_HORIZONS_MONTHS)
     else:
-        horizons = [int(part) for part in value.split(",")]
+        try:
+            horizons = [int(part) for part in value.split(",")]
+        except ValueError as error:
+            raise HTTPException(
+                status_code=422, detail="months must be whole numbers"
+            ) from error
+        if any(horizon < 0 for horizon in horizons):
+            raise HTTPException(status_code=422, detail="months cannot be negative")
     return horizons

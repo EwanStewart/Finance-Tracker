@@ -92,6 +92,14 @@ def test_get_projections_includes_unallocated_surplus():
     assert response.json() == [{"months": 12, "total_pence": 12 * 500_00}]
 
 
+def test_get_projections_rejects_a_non_numeric_month():
+    conn = connect(":memory:")
+    client = _client_with_db(conn)
+
+    assert client.get("/projections?months=abc").status_code == 422
+    assert client.get("/projections?months=-5").status_code == 422
+
+
 def test_post_credit_card_stores_a_positive_balance_as_debt():
     conn = connect(":memory:")
     client = _client_with_db(conn)
