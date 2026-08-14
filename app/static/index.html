@@ -278,6 +278,9 @@
         .tab-panel { display: none; }
         .tab-panel.active { display: block; }
         @media (max-width: 700px) {
+            /* Wrap rather than scroll, so no tab can hide off the edge. */
+            .tabs { flex-wrap: wrap; overflow-x: visible; }
+            .tabs button { padding: 0.6rem 0.7rem; font-size: 0.92rem; }
             main { padding: 0 1rem 2.5rem; margin-top: 1.25rem; }
             header .wrap { padding: 0 1rem; }
             header h1 { font-size: 1.05rem; }
@@ -346,13 +349,14 @@
         </div>
     </header>
     <main>
+        <div class="alert" id="app-error" hidden role="alert"></div>
         <div class="summary" id="summary"></div>
-        <nav class="tabs" id="tabs">
-            <button data-tab="overview" class="active">Overview</button>
-            <button data-tab="accounts">Accounts</button>
-            <button data-tab="income">Income</button>
-            <button data-tab="expenses">Expenses</button>
-            <button data-tab="history">History</button>
+        <nav class="tabs" id="tabs" role="tablist">
+            <button data-tab="overview" class="active" role="tab" aria-selected="true">Overview</button>
+            <button data-tab="accounts" role="tab" aria-selected="false">Accounts</button>
+            <button data-tab="income" role="tab" aria-selected="false">Income</button>
+            <button data-tab="expenses" role="tab" aria-selected="false">Expenses</button>
+            <button data-tab="history" role="tab" aria-selected="false">History</button>
         </nav>
 
         <section class="tab-panel active" id="tab-overview">
@@ -512,6 +516,7 @@
                     </div>
                 </div>
                 <canvas id="history-chart" height="120"></canvas>
+                <p id="history-empty" class="empty-note" hidden>No snapshots to plot yet. Press Snapshot now to record where you stand today.</p>
             </div>
             <div class="card" id="snapshot-detail" hidden>
                 <div class="card-head">
@@ -1113,9 +1118,31 @@
         let historyChartInstance = null;
         let allSnapshots = [];
 
+        const EMPTY_MESSAGES = {
+            'income': 'No income sources yet. Add one to start projecting.',
+            'savings-accounts': 'No savings accounts yet. Add one to start projecting.',
+            'credit-cards': 'No credit cards. Add one if you carry a balance.',
+            'monthly-expenses': 'No monthly expenses yet.',
+            'yearly-expenses': 'No yearly expenses yet.',
+            'snapshots': 'No snapshots yet. Press Snapshot now to record today.',
+        };
+
+        function markEmptyTables() {
+            for (const [id, message] of Object.entries(EMPTY_MESSAGES)) {
+                const table = document.getElementById(id);
+                const tbody = table.querySelector('tbody');
+                if (tbody.rows.length) continue;
+                const row = tbody.insertRow();
+                row.className = 'empty';
+                const cell = row.insertCell();
+                cell.colSpan = table.querySelectorAll('thead th').length || 1;
+                cell.textContent = message;
+            }
+        }
+
         function filterSnapshots(snapshots, mode) {
             if (mode === 'manual') {
-                return snapshots.filter((s) => s.trigger === 'Manual');
+                return snapshots.filter((s) => s.trigger.toLowerCase() === 'manual');
             }
             if (mode === 'month-end') {
                 const byMonth = new Map();
@@ -1203,7 +1230,16 @@
                     await apiDelete(`/snapshots/${snap.id}`);
                     refreshHistory();
                 });
+                row.tabIndex = 0;
+                row.setAttribute('role', 'button');
+                row.setAttribute('aria-label', `Snapshot from ${formatTaken(snap.taken_at)}`);
                 row.addEventListener('click', () => showSnapshotDetail(snap));
+                row.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        showSnapshotDetail(snap);
+                    }
+                });
             }
         }
 
@@ -1260,12 +1296,17 @@
         function renderHistory() {
             const mode = document.getElementById('history-filter').value;
             const filtered = filterSnapshots(allSnapshots, mode);
-            renderHistoryChart(filtered);
+            const canvas = document.getElementById('history-chart');
+            const empty = document.getElementById('history-empty');
+            canvas.hidden = filtered.length === 0;
+            empty.hidden = filtered.length > 0;
+            if (filtered.length) renderHistoryChart(filtered);
             renderSnapshotsTable(filtered);
+            markEmptyTables();
         }
 
         async function refreshHistory() {
-            allSnapshots = await fetch('/snapshots').then((r) => r.json());
+            allSnapshots = await getJson('/snapshots');
             renderHistory();
         }
 
@@ -1293,13 +1334,18 @@
             renderExpenses(expenses);
             renderAccounts(accounts);
             renderAllocationAlert(accounts, summary);
+            renderSurplusNote(summary);
             allSnapshots = snapshots;
             renderHistory();
+            markEmptyTables();
         }
 
         function activateTab(name) {
             document.querySelectorAll('#tabs button').forEach((b) => {
-                b.classList.toggle('active', b.dataset.tab === name);
+                const active = b.dataset.tab === name;
+                b.classList.toggle('active', active);
+                b.setAttribute('aria-selected', active ? 'true' : 'false');
+                if (active) b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
             });
             document.querySelectorAll('.tab-panel').forEach((p) => {
                 p.classList.toggle('active', p.id === `tab-${name}`);
@@ -1307,9 +1353,9 @@
             if (location.hash !== `#${name}`) {
                 history.replaceState(null, '', `#${name}`);
             }
-            if (name === 'history' && historyChartInstance) {
-                historyChartInstance.resize();
-            }
+            // A chart built inside a hidden panel sizes itself wrongly until resized.
+            if (name === 'history' && historyChartInstance) historyChartInstance.resize();
+            if (name === 'overview' && chartInstance) chartInstance.resize();
         }
         document.querySelectorAll('#tabs button').forEach((b) => {
             b.addEventListener('click', () => activateTab(b.dataset.tab));
