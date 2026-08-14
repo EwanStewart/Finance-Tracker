@@ -5,6 +5,7 @@ from typing import Optional, Union
 import openpyxl
 
 from app.db import (
+    capture_snapshot,
     connect,
     insert_expense,
     insert_income_source,
@@ -116,6 +117,7 @@ def seed_database(
     income = read_income_from_xlsx(xlsx_path)
     expenses = read_expenses_from_xlsx(xlsx_path)
     conn = connect(db_path)
+    capture_snapshot(conn, trigger="Manual", label="Before seed")
     with conn:
         conn.execute("DELETE FROM income_sources")
         conn.execute("DELETE FROM expenses")

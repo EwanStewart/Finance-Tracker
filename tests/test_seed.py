@@ -1,6 +1,13 @@
 import openpyxl
 
-from app.db import connect, list_accounts, list_expenses, list_income_sources
+from app.db import (
+    connect,
+    insert_account,
+    list_accounts,
+    list_expenses,
+    list_income_sources,
+    list_snapshots,
+)
 from app.projections import Account
 from app.seed import (
     read_accounts_from_xlsx,
@@ -98,6 +105,19 @@ def test_seed_database_replaces_accounts(tmp_path):
     assert counts["accounts"] == 3
     conn = connect(db_path)
     assert len(list_accounts(conn)) == 3
+
+
+def test_seed_database_snapshots_the_old_data_before_replacing_it(tmp_path):
+    xlsx = tmp_path / "fixture.xlsx"
+    _write_inputs_sheet(xlsx)
+    db_path = tmp_path / "test.db"
+    insert_account(connect(db_path), Account(name="Old account", balance_pence=42))
+
+    seed_database(xlsx, db_path)
+
+    snapshots = list_snapshots(connect(db_path))
+    assert snapshots[0].label == "Before seed"
+    assert snapshots[0].payload["accounts"][0]["name"] == "Old account"
 
 
 def test_read_income_parses_sources_until_total_row(tmp_path):
