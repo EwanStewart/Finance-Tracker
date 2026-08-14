@@ -57,6 +57,8 @@ CREATE TABLE IF NOT EXISTS fund_prices (
 def connect(path: Union[str, Path]) -> sqlite3.Connection:
     conn = sqlite3.connect(str(path), check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    # WAL survives a power cut on the Pi's SD card far better than the default.
+    conn.execute("PRAGMA journal_mode=WAL")
     conn.executescript(SCHEMA)
     _migrate(conn)
     return conn
