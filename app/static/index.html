@@ -540,6 +540,7 @@
         </section>
     </main>
     <script>
+        const NO_VALUE = 'n/a';
         const gbp = (pence) => new Intl.NumberFormat('en-GB', {
             style: 'currency', currency: 'GBP'
         }).format(pence / 100);
@@ -571,7 +572,7 @@
                 const months = Number(el.dataset.months);
                 const point = projections.find((p) => p.months === months);
                 el.querySelector('[data-value]').textContent =
-                    point ? gbp(point.total_pence) : '—';
+                    point ? gbp(point.total_pence) : NO_VALUE;
             }
         }
 
@@ -651,25 +652,26 @@
             return Math.max(0, months);
         }
 
-        let customDebounce;
+        const localDate = (date) => [
+            date.getFullYear(),
+            String(date.getMonth() + 1).padStart(2, '0'),
+            String(date.getDate()).padStart(2, '0'),
+        ].join('-');
+
         function setupCustomHorizon() {
             const input = document.getElementById('custom-date');
             const output = document.getElementById('custom-value');
-            const today = new Date();
-            const minDate = today.toISOString().slice(0, 10);
-            input.min = minDate;
+            // Recomputed per use so a tab left open overnight still counts from today.
+            input.addEventListener('focus', () => { input.min = localDate(new Date()); });
+            input.min = localDate(new Date());
             input.addEventListener('change', async () => {
-                clearTimeout(customDebounce);
                 if (!input.value) {
-                    output.textContent = '—';
+                    output.textContent = NO_VALUE;
                     return;
                 }
-                const target = new Date(input.value + 'T00:00:00');
-                const months = monthsBetween(today, target);
-                customDebounce = setTimeout(async () => {
-                    const data = await fetch(`/projections?months=${months}`).then((r) => r.json());
-                    output.textContent = data[0] ? gbp(data[0].total_pence) : '—';
-                }, 100);
+                const months = monthsBetween(new Date(), new Date(input.value + 'T00:00:00'));
+                const data = await getJson(`/projections?months=${months}`);
+                output.textContent = data[0] ? gbp(data[0].total_pence) : NO_VALUE;
             });
         }
 
@@ -1220,7 +1222,7 @@
             const panel = document.getElementById('snapshot-detail');
             const title = document.getElementById('snapshot-detail-title');
             const body = document.getElementById('snapshot-detail-body');
-            const labelText = snap.label ? ` — ${snap.label}` : '';
+            const labelText = snap.label ? `: ${snap.label}` : '';
             title.textContent = `${formatTaken(snap.taken_at)} (${snap.trigger})${labelText}`;
             const accounts = snap.payload.accounts ?? [];
             const income = snap.payload.income ?? [];
