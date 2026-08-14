@@ -133,6 +133,31 @@
             font-size: 0.9rem;
         }
         .alert strong { font-weight: 600; }
+        #app-error[hidden] { display: none; }
+        #app-error {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+        #app-error button {
+            font: inherit;
+            border: 0;
+            background: none;
+            color: inherit;
+            cursor: pointer;
+            padding: 0;
+        }
+        .empty-note {
+            color: var(--rbs-muted);
+            font-size: 0.9rem;
+            margin: 0;
+        }
+        td.empty, tr.empty td {
+            color: var(--rbs-muted);
+            text-align: center;
+            padding: 1.25rem 0.6rem;
+        }
         tbody tr:last-child td { border-bottom: 0; }
         .horizons {
             display: grid;
@@ -1077,36 +1102,58 @@
             );
         }
 
-        async function apiPost(url, body) {
-            const r = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
-            });
-            if (!r.ok) throw new Error(await r.text());
-            return r.json();
+        function showError(message) {
+            const el = document.getElementById('app-error');
+            el.innerHTML = '';
+            const text = document.createElement('div');
+            text.innerHTML = '<strong>Something went wrong.</strong> ';
+            text.append(message);
+            const dismiss = document.createElement('button');
+            dismiss.type = 'button';
+            dismiss.textContent = 'Dismiss';
+            dismiss.addEventListener('click', () => { el.hidden = true; });
+            el.append(text, dismiss);
+            el.hidden = false;
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
-        async function apiPut(url, body) {
-            const r = await fetch(url, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
-            });
-            if (!r.ok) throw new Error(await r.text());
-            return r.json();
+        function hideError() {
+            document.getElementById('app-error').hidden = true;
         }
 
-        async function apiDelete(url) {
-            const r = await fetch(url, { method: 'DELETE' });
-            if (!r.ok && r.status !== 204) throw new Error(await r.text());
+        async function failure(response) {
+            let detail = `The server replied ${response.status}.`;
+            try {
+                const body = await response.json();
+                if (body.detail) detail = String(body.detail);
+            } catch (error) {
+                /* a non-JSON body leaves the status message in place */
+            }
+            return new Error(detail);
         }
+
+        async function apiSend(method, url, body) {
+            const options = { method };
+            if (body !== undefined) {
+                options.headers = { 'Content-Type': 'application/json' };
+                options.body = JSON.stringify(body);
+            }
+            const response = await fetch(url, options);
+            if (!response.ok) throw await failure(response);
+            hideError();
+            return response.status === 204 ? null : response.json();
+        }
+
+        const apiPost = (url, body) => apiSend('POST', url, body);
+        const apiPut = (url, body) => apiSend('PUT', url, body);
+        const apiDelete = (url) => apiSend('DELETE', url);
+
+        window.addEventListener('unhandledrejection', (event) => {
+            showError(event.reason?.message ?? 'The request could not be completed.');
+        });
 
         function clearAll() {
-            for (const id of ['summary', 'chart']) {
-                const el = document.getElementById(id);
-                if (id === 'summary') el.innerHTML = '';
-            }
+            document.getElementById('summary').innerHTML = '';
             for (const id of ['income', 'savings-accounts', 'credit-cards', 'monthly-expenses', 'yearly-expenses', 'snapshots']) {
                 document.querySelector(`#${id} tbody`).innerHTML = '';
             }
@@ -1317,16 +1364,23 @@
             refreshHistory();
         }
 
+        async function getJson(url) {
+            const response = await fetch(url);
+            if (!response.ok) throw await failure(response);
+            return response.json();
+        }
+
         async function refresh() {
-            clearAll();
             const [projections, accounts, income, expenses, snapshots, summary] = await Promise.all([
-                fetch('/projections').then((r) => r.json()),
-                fetch('/accounts').then((r) => r.json()),
-                fetch('/income').then((r) => r.json()),
-                fetch('/expenses').then((r) => r.json()),
-                fetch('/snapshots').then((r) => r.json()),
-                fetch('/summary').then((r) => r.json()),
+                getJson('/projections'),
+                getJson('/accounts'),
+                getJson('/income'),
+                getJson('/expenses'),
+                getJson('/snapshots'),
+                getJson('/summary'),
             ]);
+            hideError();
+            clearAll();
             renderSummary(projections);
             renderHorizons(projections);
             renderChart(projections);
