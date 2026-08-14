@@ -40,6 +40,16 @@ CREATE TABLE IF NOT EXISTS snapshots (
 );
 
 CREATE INDEX IF NOT EXISTS idx_snapshots_taken_at ON snapshots(taken_at);
+
+CREATE TABLE IF NOT EXISTS fund_prices (
+    isin TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    price_pence REAL NOT NULL,
+    change_pence REAL NOT NULL,
+    change_percent REAL NOT NULL,
+    priced_at TEXT NOT NULL,
+    fetched_on TEXT NOT NULL
+);
 """
 
 
@@ -334,6 +344,40 @@ def delete_snapshot(conn: sqlite3.Connection, snapshot_id: int) -> bool:
     cursor = conn.execute("DELETE FROM snapshots WHERE id = ?", (snapshot_id,))
     conn.commit()
     return cursor.rowcount > 0
+
+
+_FUND_PRICE_COLUMNS = (
+    "isin, name, price_pence, change_pence, change_percent, priced_at, fetched_on"
+)
+
+
+def get_fund_price(conn: sqlite3.Connection, isin: str) -> Optional[dict[str, Any]]:
+    row = conn.execute(
+        f"SELECT {_FUND_PRICE_COLUMNS} FROM fund_prices WHERE isin = ?", (isin,)
+    ).fetchone()
+    return dict(row) if row is not None else None
+
+
+def save_fund_price(conn: sqlite3.Connection, price, fetched_on: str) -> None:
+    conn.execute(
+        f"INSERT INTO fund_prices ({_FUND_PRICE_COLUMNS}) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(isin) DO UPDATE SET "
+        "name = excluded.name, price_pence = excluded.price_pence, "
+        "change_pence = excluded.change_pence, "
+        "change_percent = excluded.change_percent, "
+        "priced_at = excluded.priced_at, fetched_on = excluded.fetched_on",
+        (
+            price.isin,
+            price.name,
+            price.price_pence,
+            price.change_pence,
+            price.change_percent,
+            price.priced_at,
+            fetched_on,
+        ),
+    )
+    conn.commit()
 
 
 def _utcnow_iso() -> str:

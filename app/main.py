@@ -1,6 +1,8 @@
 from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
-from typing import Generator, Literal
+from typing import Any, Generator, Literal, Optional
+from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from fastapi.responses import FileResponse
@@ -15,6 +17,7 @@ from app.db import (
     delete_snapshot,
     get_account,
     get_expense,
+    get_fund_price,
     get_income_source,
     insert_account,
     insert_expense,
@@ -23,10 +26,12 @@ from app.db import (
     list_expenses,
     list_income_sources,
     list_snapshots,
+    save_fund_price,
     update_account,
     update_expense,
     update_income_source,
 )
+from app.fund import FACTSHEET_URL, FUND_ISIN, FundPriceError, fetch_price
 from app.projections import (
     Account,
     Expense,
@@ -194,6 +199,43 @@ def remove_expense(expense_id: int, db=Depends(get_db)) -> Response:
         raise HTTPException(status_code=404, detail="expense not found")
     capture_snapshot(db, trigger="Write")
     return Response(status_code=204)
+
+
+def _today_in_london() -> str:
+    return datetime.now(ZoneInfo("Europe/London")).date().isoformat()
+
+
+def _fund_price_payload(row: dict[str, Any], stale: bool) -> dict:
+    payload = dict(row)
+    payload["stale"] = stale
+    payload["source_url"] = FACTSHEET_URL
+    return payload
+
+
+def _refresh_fund_price(db, cached: Optional[dict[str, Any]], today: str) -> dict:
+    try:
+        price = fetch_price()
+    except (FundPriceError, OSError) as error:
+        if cached is None:
+            raise HTTPException(
+                status_code=503, detail="fund price unavailable"
+            ) from error
+        result = _fund_price_payload(cached, stale=True)
+    else:
+        save_fund_price(db, price, today)
+        result = _fund_price_payload(get_fund_price(db, FUND_ISIN), stale=False)
+    return result
+
+
+@app.get("/fund-price")
+def get_fund(db=Depends(get_db)) -> dict:
+    cached = get_fund_price(db, FUND_ISIN)
+    today = _today_in_london()
+    if cached is not None and cached["fetched_on"] == today:
+        result = _fund_price_payload(cached, stale=False)
+    else:
+        result = _refresh_fund_price(db, cached, today)
+    return result
 
 
 @app.get("/summary")
