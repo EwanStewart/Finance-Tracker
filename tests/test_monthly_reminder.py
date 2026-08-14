@@ -1,5 +1,6 @@
 import datetime
 
+from scripts import monthly_reminder
 from scripts.monthly_reminder import first_working_day_of_month, render_email
 
 
@@ -34,3 +35,20 @@ def test_render_email_includes_month_and_label_for_previous_month():
     assert "End of May" in html
     assert "#0a2240" in html
     assert "#5a287d" in html
+
+
+def test_should_send_only_on_the_first_working_day(monkeypatch):
+    holidays = {"2026-09-01"}
+    monkeypatch.setattr(monthly_reminder, "fetch_bank_holidays", lambda: holidays)
+
+    assert monthly_reminder.should_send(datetime.date(2026, 9, 2), force=False) is True
+    assert monthly_reminder.should_send(datetime.date(2026, 9, 3), force=False) is False
+
+
+def test_should_send_bypasses_the_date_check_when_forced(monkeypatch):
+    def unreachable():
+        raise AssertionError("holidays should not be fetched when forced")
+
+    monkeypatch.setattr(monthly_reminder, "fetch_bank_holidays", unreachable)
+
+    assert monthly_reminder.should_send(datetime.date(2026, 9, 3), force=True) is True
