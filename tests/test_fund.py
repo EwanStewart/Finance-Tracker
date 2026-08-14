@@ -5,7 +5,7 @@ import pytest
 from app.fund import FUND_ISIN, FundPriceError, parse_price
 
 
-def build_page(price="471.25", change="2.14", percent="0.46") -> str:
+def build_page(price="471.25", change="2.14", percent="0.46", currency="GBX") -> str:
     payload = {
         "props": {
             "pageProps": {
@@ -18,7 +18,7 @@ def build_page(price="471.25", change="2.14", percent="0.46") -> str:
                                 "changeAbsolute": change,
                                 "changePercentage": percent,
                                 "lastUpdated": "2026-08-13 01:00:00",
-                                "currency": "GBX",
+                                "currency": currency,
                             },
                         }
                     }
@@ -52,3 +52,8 @@ def test_parse_price_rejects_a_page_without_the_next_data_block():
 def test_parse_price_rejects_a_non_numeric_price():
     with pytest.raises(FundPriceError):
         parse_price(build_page(price="null"))
+
+
+def test_parse_price_rejects_a_currency_that_is_not_pence():
+    with pytest.raises(FundPriceError):
+        parse_price(build_page(currency="GBP"))

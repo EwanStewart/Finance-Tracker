@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Any
 
 FUND_ISIN = "GB00BJS8SJ34"
+PENCE_CURRENCY = "GBX"
 FACTSHEET_URL = (
     "https://www.fidelity.co.uk/factsheet-data/factsheet/"
     "GB00BJS8SJ34-fidelity-index-world-fund-p-acc/key-statistics"
@@ -63,6 +64,12 @@ def _to_number(value: Any, field: str) -> float:
 def parse_price(html: str, isin: str = FUND_ISIN) -> FundPrice:
     fund_data = _fund_data(html)
     details = fund_data.get("priceDtls") or {}
+    currency = details.get("currency")
+    if currency != PENCE_CURRENCY:
+        raise FundPriceError(
+            f"factsheet quotes {currency!r}, not {PENCE_CURRENCY}; "
+            "the price is no longer in pence"
+        )
     result = FundPrice(
         isin=isin,
         name=fund_data.get("name") or fund_data.get("headFundName") or isin,
