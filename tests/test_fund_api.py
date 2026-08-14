@@ -1,3 +1,5 @@
+from urllib.error import URLError
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -24,6 +26,12 @@ CACHED = FundPrice(
 )
 
 
+@pytest.fixture(autouse=True)
+def _clear_overrides():
+    yield
+    app.dependency_overrides.clear()
+
+
 def _client(conn, monkeypatch, today="2026-08-13", fetcher=None):
     app.dependency_overrides[get_db] = lambda: conn
     monkeypatch.setattr(main, "_today_in_london", lambda: today)
@@ -40,10 +48,10 @@ def _fetcher_returning(price, calls):
     return fetch
 
 
-def _fetcher_failing(calls):
+def _fetcher_failing(calls, error=None):
     def fetch():
         calls.append(1)
-        raise FundPriceError("factsheet unavailable")
+        raise error or FundPriceError("factsheet unavailable")
 
     return fetch
 
@@ -90,10 +98,16 @@ def test_fund_price_refetches_once_the_cached_day_has_passed(monkeypatch):
     assert len(calls) == 1
 
 
-def test_fund_price_falls_back_to_the_stale_cache_when_the_fetch_fails(monkeypatch):
+@pytest.mark.parametrize(
+    "error",
+    [FundPriceError("factsheet unavailable"), URLError("network is down")],
+)
+def test_fund_price_falls_back_to_the_stale_cache_when_the_fetch_fails(
+    monkeypatch, error
+):
     conn = connect(":memory:")
     save_fund_price(conn, CACHED, fetched_on="2026-08-12")
-    client = _client(conn, monkeypatch, fetcher=_fetcher_failing([]))
+    client = _client(conn, monkeypatch, fetcher=_fetcher_failing([], error))
 
     response = client.get("/fund-price")
 

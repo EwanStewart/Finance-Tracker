@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable, Optional, Union
 
+from app.fund import FundPrice
 from app.projections import Account, Expense, IncomeSource, Snapshot
 
 SCHEMA = """
@@ -358,7 +359,9 @@ def get_fund_price(conn: sqlite3.Connection, isin: str) -> Optional[dict[str, An
     return dict(row) if row is not None else None
 
 
-def save_fund_price(conn: sqlite3.Connection, price, fetched_on: str) -> None:
+def save_fund_price(
+    conn: sqlite3.Connection, price: FundPrice, fetched_on: str
+) -> None:
     conn.execute(
         f"INSERT INTO fund_prices ({_FUND_PRICE_COLUMNS}) "
         "VALUES (?, ?, ?, ?, ?, ?, ?) "
