@@ -26,12 +26,6 @@ CACHED = FundPrice(
 )
 
 
-@pytest.fixture(autouse=True)
-def _clear_overrides():
-    yield
-    app.dependency_overrides.clear()
-
-
 def _client(conn, monkeypatch, today="2026-08-13", fetcher=None):
     app.dependency_overrides[get_db] = lambda: conn
     monkeypatch.setattr(main, "_today_in_london", lambda: today)
