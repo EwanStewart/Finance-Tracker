@@ -377,12 +377,13 @@
                     <div class="label">
                         <input id="custom-date" type="date" aria-label="Custom date">
                     </div>
-                    <div class="value" id="custom-value">&mdash;</div>
+                    <div class="value" id="custom-value">n/a</div>
                 </div>
             </div>
             <div class="card">
                 <h2>Projected net wealth</h2>
                 <canvas id="chart" height="120"></canvas>
+                <p id="surplus-note" class="empty-note" hidden></p>
             </div>
             <div class="card">
                 <div class="card-head">
@@ -980,6 +981,16 @@
                 () => startEditAccount(account, row, renderCreditCardEditRow),
                 () => deleteAccount(account)
             );
+        }
+
+        function renderSurplusNote(summary) {
+            const note = document.getElementById('surplus-note');
+            const surplus = summary.unallocated_surplus_pence ?? 0;
+            note.hidden = surplus <= 0;
+            if (surplus > 0) {
+                note.textContent =
+                    `Includes ${gbp(surplus)} a month of unallocated surplus, held as cash.`;
+            }
         }
 
         function renderAllocationAlert(accounts, summary) {
