@@ -18,6 +18,7 @@
             --rbs-bg: #f5f6f8;
             --rbs-card: #ffffff;
             --rbs-negative: #b8002e;
+            --rbs-positive: #1a7f4b;
         }
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
@@ -193,6 +194,25 @@
             margin-bottom: 1rem;
         }
         .card-head h2 { margin: 0; }
+        .fund .price {
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: var(--rbs-navy);
+        }
+        .fund .change { margin-left: 0.5rem; font-weight: 600; }
+        .fund .change.up { color: var(--rbs-positive); }
+        .fund .change.down { color: var(--rbs-negative); }
+        .fund .meta {
+            color: var(--rbs-muted);
+            font-size: 0.85rem;
+        }
+        .fund-link {
+            color: var(--rbs-purple);
+            font-size: 0.85rem;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .fund-link:hover { text-decoration: underline; }
         .btn {
             font: inherit;
             border: 1px solid var(--rbs-navy);
@@ -362,6 +382,13 @@
             <div class="card">
                 <h2>Projected net wealth</h2>
                 <canvas id="chart" height="120"></canvas>
+            </div>
+            <div class="card">
+                <div class="card-head">
+                    <h2>Fidelity Index World Fund</h2>
+                    <a class="fund-link" href="https://www.fidelity.co.uk/factsheet-data/factsheet/GB00BJS8SJ34-fidelity-index-world-fund-p-acc/key-statistics" target="_blank" rel="noopener">Factsheet</a>
+                </div>
+                <div class="fund" id="fund"><div class="meta">Loading price&hellip;</div></div>
             </div>
         </section>
 
@@ -543,6 +570,42 @@
                 const point = projections.find((p) => p.months === months);
                 el.querySelector('[data-value]').textContent =
                     point ? gbp(point.total_pence) : '—';
+            }
+        }
+
+        const pencePrice = (value) => `${value.toFixed(2)}p`;
+        const signed = (value, format) => (value >= 0 ? '+' : '−') + format(Math.abs(value));
+
+        function pricedOnLabel(pricedAt) {
+            const parsed = new Date(String(pricedAt).replace(' ', 'T'));
+            if (Number.isNaN(parsed.getTime())) return String(pricedAt);
+            return parsed.toLocaleDateString('en-GB', {
+                day: 'numeric', month: 'short', year: 'numeric'
+            });
+        }
+
+        function renderFundPrice(fund) {
+            const root = document.getElementById('fund');
+            const direction = fund.change_pence >= 0 ? 'up' : 'down';
+            const change = `${signed(fund.change_pence, pencePrice)} ` +
+                `(${signed(fund.change_percent, (v) => v.toFixed(2) + '%')})`;
+            const meta = fund.stale
+                ? `Priced ${pricedOnLabel(fund.priced_at)} — today's update could not be fetched`
+                : `Priced ${pricedOnLabel(fund.priced_at)}`;
+            root.innerHTML =
+                `<div><span class="price">${pencePrice(fund.price_pence)}</span>` +
+                `<span class="change ${direction}">${change}</span></div>` +
+                `<div class="meta">${fund.name} · ${meta}</div>`;
+        }
+
+        async function loadFundPrice() {
+            const root = document.getElementById('fund');
+            try {
+                const response = await fetch('/fund-price');
+                if (!response.ok) throw new Error(`status ${response.status}`);
+                renderFundPrice(await response.json());
+            } catch (error) {
+                root.innerHTML = '<div class="meta">Price unavailable right now.</div>';
             }
         }
 
@@ -1192,6 +1255,7 @@
         document.getElementById('snapshot-detail-close').addEventListener('click', hideSnapshotDetail);
         setupCustomHorizon();
         refresh();
+        loadFundPrice();
     </script>
 </body>
 </html>

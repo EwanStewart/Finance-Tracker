@@ -9,7 +9,9 @@ Personal net wealth dashboard. FastAPI + SQLite. Self-hosted on a Raspberry Pi.
 
 ## What it does
 
-The Overview tab shows today's net wealth and a chart projecting balance over the next five years. Headline cards summarise the projection at fixed horizons and at a custom date.
+The Overview tab shows today's net wealth and a chart projecting balance over the next five years. Headline cards summarise the projection at fixed horizons and at a custom date. A card at the bottom shows the latest Fidelity Index World Fund price with its daily change.
+
+The fund price comes from the [public factsheet](https://www.fidelity.co.uk/factsheet-data/factsheet/GB00BJS8SJ34-fidelity-index-world-fund-p-acc/key-statistics). The server caches it in SQLite and refetches at most once per London day, on the first page load of that day. If Fidelity is unreachable, the card keeps showing the last known price and says the update failed.
 
 The Accounts tab manages savings and credit cards. The Income tab lists each source with its monthly amount. The Expenses tab splits monthly and yearly outgoings. The yearly table also shows each item's monthly equivalent.
 
