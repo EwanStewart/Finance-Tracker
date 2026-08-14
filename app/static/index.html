@@ -689,6 +689,20 @@
             const [save, cancel] = cell.querySelectorAll('button');
             save.addEventListener('click', onSave);
             cancel.addEventListener('click', onCancel);
+            row.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    onSave();
+                } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    onCancel();
+                }
+            });
+            for (const empty of row.parentElement.querySelectorAll('tr.empty')) {
+                empty.remove();
+            }
+            const first = row.querySelector('input');
+            if (first) first.focus();
         }
 
         function renderIncomeEditRow(tbody, source, onSave, onCancel) {
@@ -886,20 +900,31 @@
             };
         }
 
-        function _labelledInputCell(row, label, isNum, value, placeholder) {
+        function _editInput(row, label, type, value) {
             const cell = row.insertCell();
             cell.setAttribute('data-label', label);
-            if (isNum) cell.className = 'num';
-            const cls = isNum ? 'cell-input num' : 'cell-input';
-            const extra = isNum ? 'inputmode="decimal" autocomplete="off"' : '';
-            const ph = placeholder ? `placeholder="${placeholder}"` : '';
-            cell.innerHTML = `<input class="${cls}" type="text" ${extra} value="${value ?? ''}" ${ph}>`;
+            const input = document.createElement('input');
+            input.type = type;
+            input.className = 'cell-input';
+            input.value = value ?? '';
+            input.setAttribute('aria-label', label);
+            cell.append(input);
+            return { cell, input };
+        }
+
+        function _labelledInputCell(row, label, isNum, value, placeholder) {
+            const { cell, input } = _editInput(row, label, 'text', value);
+            if (isNum) {
+                cell.className = 'num';
+                input.className = 'cell-input num';
+                input.inputMode = 'decimal';
+                input.autocomplete = 'off';
+            }
+            if (placeholder) input.placeholder = placeholder;
         }
 
         function _labelledDateInputCell(row, label, value) {
-            const cell = row.insertCell();
-            cell.setAttribute('data-label', label);
-            cell.innerHTML = `<input class="cell-input" type="date" value="${value ?? ''}">`;
+            _editInput(row, label, 'date', value);
         }
 
         function formatRenewalDate(value) {
