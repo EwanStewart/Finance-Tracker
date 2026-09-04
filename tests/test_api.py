@@ -44,6 +44,7 @@ def test_get_accounts_returns_inserted_accounts():
             "annual_rate_bp": 345,
             "monthly_allocation_pence": 0,
             "kind": "savings",
+            "bank": "RBS",
             "id": 1,
         }
     ]

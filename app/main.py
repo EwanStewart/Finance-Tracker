@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import AfterValidator, BaseModel, model_validator
 
 from app.db import (
@@ -59,6 +60,7 @@ class AccountIn(BaseModel):
     annual_rate_bp: int = 0
     monthly_allocation_pence: int = 0
     kind: Literal["savings", "credit_card"] = "savings"
+    bank: Literal["Moneybox", "RBS"] = "RBS"
 
     @model_validator(mode="after")
     def card_balance_is_debt(self) -> "AccountIn":
@@ -88,12 +90,21 @@ DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent / "data" / "finance.db"
 DEFAULT_HORIZONS_MONTHS = [0, 1, 3, 6, 12, 24, 60]
 STATIC_DIR = Path(__file__).parent / "static"
 
+# Moneybox leads the list because it holds the ISAs and the reward savings.
+BANKS = [
+    {"name": "Moneybox", "logo": "/logos/moneybox.png"},
+    {"name": "RBS", "logo": "/logos/rbs.svg"},
+]
+
 app = FastAPI(title="Finance-Tracker")
 
 
 @app.get("/", include_in_schema=False)
 def index():
     return FileResponse(STATIC_DIR / "index.html")
+
+
+app.mount("/logos", StaticFiles(directory=STATIC_DIR / "logos"), name="logos")
 
 
 def get_db() -> Generator:
@@ -107,6 +118,11 @@ def get_db() -> Generator:
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/banks")
+def get_banks() -> list[dict]:
+    return BANKS
 
 
 @app.get("/accounts")

@@ -7,6 +7,23 @@ Cadence = Literal["monthly", "yearly"]
 AccountKind = Literal["savings", "credit_card"]
 
 
+Bank = Literal["Moneybox", "RBS"]
+
+
+def default_bank(name: str, kind: AccountKind = "savings") -> Bank:
+    """Pick the bank an account sits with from its name.
+
+    Moneybox holds the ISAs and the reward savings. Everything else,
+    including every credit card, sits with RBS.
+    """
+    lowered = name.lower()
+    moneybox = kind == "savings" and (
+        "isa" in lowered or ("reward" in lowered and "saving" in lowered)
+    )
+    result = "Moneybox" if moneybox else "RBS"
+    return result
+
+
 @dataclass(frozen=True)
 class Account:
     name: str
@@ -14,6 +31,7 @@ class Account:
     annual_rate_bp: int = 0
     monthly_allocation_pence: int = 0
     kind: AccountKind = "savings"
+    bank: Bank = "RBS"
     id: Optional[int] = None
 
 

@@ -6,7 +6,13 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Optional, Union
 
 from app.fund import FundPrice
-from app.projections import Account, Expense, IncomeSource, Snapshot
+from app.projections import (
+    Account,
+    Expense,
+    IncomeSource,
+    Snapshot,
+    default_bank,
+)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS accounts (
@@ -15,7 +21,8 @@ CREATE TABLE IF NOT EXISTS accounts (
     balance_pence INTEGER NOT NULL,
     annual_rate_bp INTEGER NOT NULL DEFAULT 0,
     monthly_allocation_pence INTEGER NOT NULL DEFAULT 0,
-    kind TEXT NOT NULL DEFAULT 'savings' CHECK (kind IN ('savings', 'credit_card'))
+    kind TEXT NOT NULL DEFAULT 'savings' CHECK (kind IN ('savings', 'credit_card')),
+    bank TEXT NOT NULL DEFAULT 'RBS' CHECK (bank IN ('Moneybox', 'RBS'))
 );
 
 CREATE TABLE IF NOT EXISTS income_sources (
@@ -73,6 +80,11 @@ def _migrate(conn: sqlite3.Connection) -> None:
             "ALTER TABLE accounts ADD COLUMN kind TEXT NOT NULL DEFAULT 'savings'"
         )
         conn.commit()
+    if "bank" not in account_columns:
+        conn.execute(
+            "ALTER TABLE accounts ADD COLUMN bank TEXT NOT NULL DEFAULT 'RBS'"
+        )
+        _backfill_banks(conn)
     expense_columns = [
         row["name"] for row in conn.execute("PRAGMA table_info(expenses)").fetchall()
     ]
@@ -80,6 +92,16 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE expenses ADD COLUMN renewal_date TEXT")
         conn.commit()
     _migrate_snapshot_trigger_case(conn)
+
+
+def _backfill_banks(conn: sqlite3.Connection) -> None:
+    """Fill in the bank for rows that predate the column."""
+    rows = conn.execute("SELECT id, name, kind FROM accounts").fetchall()
+    conn.executemany(
+        "UPDATE accounts SET bank = ? WHERE id = ?",
+        [(default_bank(row["name"], row["kind"]), row["id"]) for row in rows],
+    )
+    conn.commit()
 
 
 TRIGGER_CASE_REWRITE = """
@@ -119,12 +141,12 @@ def _migrate_snapshot_trigger_case(conn: sqlite3.Connection) -> None:
 
 INSERT_SQL = (
     "INSERT INTO accounts "
-    "(name, balance_pence, annual_rate_bp, monthly_allocation_pence, kind) "
-    "VALUES (?, ?, ?, ?, ?)"
+    "(name, balance_pence, annual_rate_bp, monthly_allocation_pence, kind, bank) "
+    "VALUES (?, ?, ?, ?, ?, ?)"
 )
 
 _ACCOUNT_COLUMNS = (
-    "id, name, balance_pence, annual_rate_bp, monthly_allocation_pence, kind"
+    "id, name, balance_pence, annual_rate_bp, monthly_allocation_pence, kind, bank"
 )
 
 
@@ -137,6 +159,7 @@ def insert_account(conn: sqlite3.Connection, account: Account) -> int:
             account.annual_rate_bp,
             account.monthly_allocation_pence,
             account.kind,
+            account.bank,
         ),
     )
     conn.commit()
@@ -161,13 +184,14 @@ def get_account(conn: sqlite3.Connection, account_id: int) -> Optional[Account]:
 def update_account(conn: sqlite3.Connection, account_id: int, account: Account) -> bool:
     cursor = conn.execute(
         "UPDATE accounts SET name = ?, balance_pence = ?, annual_rate_bp = ?, "
-        "monthly_allocation_pence = ?, kind = ? WHERE id = ?",
+        "monthly_allocation_pence = ?, kind = ?, bank = ? WHERE id = ?",
         (
             account.name,
             account.balance_pence,
             account.annual_rate_bp,
             account.monthly_allocation_pence,
             account.kind,
+            account.bank,
             account_id,
         ),
     )
@@ -287,7 +311,14 @@ def delete_expense(conn: sqlite3.Connection, expense_id: int) -> bool:
 
 def replace_accounts(conn: sqlite3.Connection, accounts: Iterable[Account]) -> None:
     rows = [
-        (a.name, a.balance_pence, a.annual_rate_bp, a.monthly_allocation_pence, a.kind)
+        (
+            a.name,
+            a.balance_pence,
+            a.annual_rate_bp,
+            a.monthly_allocation_pence,
+            a.kind,
+            a.bank,
+        )
         for a in accounts
     ]
     with conn:

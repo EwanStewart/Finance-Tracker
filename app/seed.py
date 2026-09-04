@@ -11,7 +11,7 @@ from app.db import (
     insert_income_source,
     replace_accounts,
 )
-from app.projections import Account, Expense, IncomeSource
+from app.projections import Account, Expense, IncomeSource, default_bank
 
 
 def _to_pence(value, multiplier=100):
@@ -41,6 +41,7 @@ def _read_savings(ws) -> list[Account]:
                 balance_pence=_to_pence(ws.cell(row=row, column=2).value),
                 annual_rate_bp=_to_pence(ws.cell(row=row, column=3).value),
                 monthly_allocation_pence=_to_pence(ws.cell(row=row, column=4).value),
+                bank=default_bank(str(name)),
             )
         )
     return accounts

@@ -27,6 +27,74 @@
             --rbs-field: #ffffff;
             --rbs-on-navy: #ffffff;
         }
+        .bank {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+        .bank img {
+            width: 20px;
+            height: 20px;
+            border-radius: 5px;
+            flex: none;
+        }
+        .bank-totals {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 280px));
+            justify-content: start;
+            gap: 0.9rem;
+        }
+        .bank-total {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            border: 1px solid var(--rbs-line);
+            border-radius: 10px;
+            padding: 0.7rem 0.85rem;
+        }
+        .bank-total img {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            flex: none;
+        }
+        .bank-total .name {
+            color: var(--rbs-muted);
+            font-size: 0.8rem;
+        }
+        .bank-total .amount {
+            font-size: 1.05rem;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+        .bank-total .owed {
+            color: var(--rbs-muted);
+            font-size: 0.78rem;
+            font-variant-numeric: tabular-nums;
+        }
+        .bank-picker {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+        .bank-picker img {
+            width: 20px;
+            height: 20px;
+            border-radius: 5px;
+            flex: none;
+        }
+        .cell-input { max-width: 10rem; }
+        .cell-input.num { max-width: 5.5rem; }
+        /* An editing row carries the widest content, so it gives back gutter. */
+        tr.editing td { padding-left: 0.35rem; padding-right: 0.35rem; }
+        select.cell-input {
+            padding: 0.3rem 0.2rem;
+            font: inherit;
+            color: var(--rbs-text);
+            background: var(--rbs-field);
+            border: 1px solid var(--rbs-line);
+            border-radius: 4px;
+        }
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
         body {
@@ -554,6 +622,12 @@
         <section class="tab-panel" id="tab-accounts" role="tabpanel" aria-labelledby="tab-btn-accounts">
             <div class="card">
                 <div class="card-head">
+                    <h2>Money with each bank</h2>
+                </div>
+                <div class="bank-totals" id="bank-totals"></div>
+            </div>
+            <div class="card">
+                <div class="card-head">
                     <h2>Savings</h2>
                     <button class="btn" id="add-savings">+ Add savings</button>
                 </div>
@@ -562,6 +636,7 @@
                         <thead>
                             <tr>
                                 <th>Name</th>
+                                <th>Bank</th>
                                 <th class="num">Balance</th>
                                 <th class="num">Annual rate</th>
                                 <th class="num">Monthly allocation</th>
@@ -582,6 +657,7 @@
                         <thead>
                             <tr>
                                 <th>Name</th>
+                                <th>Bank</th>
                                 <th class="num">Owed</th>
                                 <th></th>
                             </tr>
@@ -721,6 +797,90 @@
     <script>
         const NO_VALUE = 'n/a';
         const cache = { accounts: [], income: [], expenses: [], summary: null };
+
+        let banks = [];
+
+        const bankLogo = (name) => banks.find((bank) => bank.name === name)?.logo ?? '';
+
+        function bankImage(name) {
+            const image = document.createElement('img');
+            image.src = bankLogo(name);
+            image.alt = '';
+            return image;
+        }
+
+        function _bankCell(row, bank) {
+            const cell = row.insertCell();
+            cell.setAttribute('data-label', 'Bank');
+            const wrap = document.createElement('span');
+            wrap.className = 'bank';
+            wrap.append(bankImage(bank), document.createTextNode(bank));
+            cell.append(wrap);
+            return cell;
+        }
+
+        function _bankSelectCell(row, bank) {
+            const cell = row.insertCell();
+            cell.setAttribute('data-label', 'Bank');
+            const wrap = document.createElement('span');
+            wrap.className = 'bank-picker';
+            const image = bankImage(bank);
+            const select = document.createElement('select');
+            select.className = 'cell-input bank-select';
+            select.setAttribute('aria-label', 'Bank');
+            for (const option of banks) {
+                const item = document.createElement('option');
+                item.value = option.name;
+                item.textContent = option.name;
+                item.selected = option.name === bank;
+                select.append(item);
+            }
+            select.addEventListener('change', () => { image.src = bankLogo(select.value); });
+            wrap.append(image, select);
+            cell.append(wrap);
+            return cell;
+        }
+
+        const rowBank = (row) => row.querySelector('.bank-select').value;
+
+        function bankTotals(accounts) {
+            return banks.map((bank) => {
+                const held = accounts.filter((a) => a.bank === bank.name);
+                const saved = held
+                    .filter((a) => a.kind !== 'credit_card')
+                    .reduce((total, a) => total + a.balance_pence, 0);
+                const owed = held
+                    .filter((a) => a.kind === 'credit_card')
+                    .reduce((total, a) => total + Math.abs(a.balance_pence), 0);
+                return { name: bank.name, logo: bank.logo, saved, owed };
+            });
+        }
+
+        function renderBankTotals(accounts) {
+            const holder = document.getElementById('bank-totals');
+            holder.innerHTML = '';
+            for (const total of bankTotals(accounts)) {
+                const card = document.createElement('div');
+                card.className = 'bank-total';
+                card.append(bankImage(total.name));
+                const text = document.createElement('div');
+                const name = document.createElement('div');
+                name.className = 'name';
+                name.textContent = total.name;
+                const amount = document.createElement('div');
+                amount.className = 'amount';
+                amount.textContent = gbp(total.saved);
+                text.append(name, amount);
+                if (total.owed > 0) {
+                    const owed = document.createElement('div');
+                    owed.className = 'owed';
+                    owed.textContent = `${gbp(total.owed)} owed`;
+                    text.append(owed);
+                }
+                card.append(text);
+                holder.append(card);
+            }
+        }
         const gbp = (pence) => new Intl.NumberFormat('en-GB', {
             style: 'currency', currency: 'GBP'
         }).format(pence / 100);
@@ -1282,6 +1442,7 @@
                 annual_rate_bp: toBasisPoints(inputs[2].value),
                 monthly_allocation_pence: toPence(inputs[3].value),
                 kind: 'savings',
+                bank: rowBank(row),
             } : null;
         }
 
@@ -1297,6 +1458,7 @@
                 annual_rate_bp: 0,
                 monthly_allocation_pence: 0,
                 kind: 'credit_card',
+                bank: rowBank(row),
             } : null;
         }
 
@@ -1354,6 +1516,7 @@
             const row = tbody.insertRow();
             row.className = 'editing';
             _labelledInputCell(row, 'Name', false, account?.name ?? '', 'Savings name');
+            _bankSelectCell(row, account?.bank ?? 'Moneybox');
             _labelledInputCell(row, 'Balance', true, account ? (account.balance_pence / 100).toFixed(2) : '', '0.00', '£');
             _labelledInputCell(row, 'Annual rate', true, account ? (account.annual_rate_bp / 100).toFixed(2) : '0', 'e.g. 3.45', '%');
             _labelledInputCell(row, 'Monthly allocation', true, account ? (account.monthly_allocation_pence / 100).toFixed(2) : '0', '0.00', '£');
@@ -1364,6 +1527,7 @@
             const row = tbody.insertRow();
             row.className = 'editing';
             _labelledInputCell(row, 'Name', false, account?.name ?? '', 'Card name');
+            _bankSelectCell(row, account?.bank ?? 'RBS');
             _labelledInputCell(row, 'Owed', true, account ? (Math.abs(account.balance_pence) / 100).toFixed(2) : '', '0.00', '£');
             addEditActions(row, () => creditCardEditPayload(row), onSave, onCancel);
         }
@@ -1409,6 +1573,7 @@
         function renderSavingsRow(tbody, account) {
             const row = tbody.insertRow();
             _labelledCell(row, 'Name', false, account.name);
+            _bankCell(row, account.bank);
             _labelledCell(row, 'Balance', true, gbp(account.balance_pence), 'balance');
             _labelledCell(row, 'Annual rate', true, (account.annual_rate_bp / 100).toFixed(2) + '%');
             _labelledCell(row, 'Monthly allocation', true, gbp(account.monthly_allocation_pence));
@@ -1423,7 +1588,8 @@
             const row = tbody.insertRow();
             row.classList.add('negative');
             _labelledCell(row, 'Name', false, account.name);
-            _labelledCell(row, 'Owed', true, gbp(account.balance_pence), 'balance');
+            _bankCell(row, account.bank);
+            _labelledCell(row, 'Owed', true, gbp(Math.abs(account.balance_pence)), 'balance');
             addRowActions(
                 row,
                 () => startEditAccount(account, row, renderCreditCardEditRow),
@@ -1474,6 +1640,7 @@
                 .sort((a, b) => a.balance_pence - b.balance_pence);
             for (const a of savings) renderSavingsRow(savingsBody, a);
             for (const a of cards) renderCreditCardRow(cardsBody, a);
+            renderBankTotals(accounts);
         }
 
         function startAddSavings() {
@@ -1752,10 +1919,10 @@
             if (!accounts.length && !income.length && !expenses.length) {
                 html += '<p style="color:var(--rbs-muted);">No detailed breakdown captured for this snapshot.</p>';
             } else {
-                html += _detailTable('Savings', ['Name', 'Balance', 'Annual rate', 'Monthly allocation'],
-                    savings.map((a) => [a.name, gbp(a.balance_pence), `${(a.annual_rate_bp / 100).toFixed(2)}%`, gbp(a.monthly_allocation_pence)]));
-                html += _detailTable('Credit cards', ['Name', 'Owed'],
-                    cards.map((a) => [a.name, gbp(a.balance_pence)]));
+                html += _detailTable('Savings', ['Name', 'Bank', 'Balance', 'Annual rate', 'Monthly allocation'],
+                    savings.map((a) => [a.name, a.bank ?? '', gbp(a.balance_pence), `${(a.annual_rate_bp / 100).toFixed(2)}%`, gbp(a.monthly_allocation_pence)]));
+                html += _detailTable('Credit cards', ['Name', 'Bank', 'Owed'],
+                    cards.map((a) => [a.name, a.bank ?? '', gbp(a.balance_pence)]));
                 html += _detailTable('Income', ['Source', 'Monthly'],
                     income.map((i) => [i.name, gbp(i.monthly_amount_pence)]));
                 const byAmountDesc = (a, b) => b.amount_pence - a.amount_pence;
@@ -1804,6 +1971,11 @@
             const response = await fetch(url);
             if (!response.ok) throw await failure(response);
             return response.json();
+        }
+
+        async function loadBanks() {
+            // The list never changes while the page is open, so it loads once.
+            banks = await getJson('/banks');
         }
 
         async function refresh() {
@@ -1931,7 +2103,7 @@
         document.getElementById('snapshot-detail-close').addEventListener('click', hideSnapshotDetail);
         setupCustomHorizon();
         showLoadingState();
-        refresh();
+        loadBanks().then(refresh);
         loadFundPrice();
     </script>
 </body>

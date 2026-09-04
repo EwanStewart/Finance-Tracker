@@ -15,7 +15,7 @@ The fund price comes from the [public factsheet](https://www.fidelity.co.uk/fact
 
 Each savings account compounds at its own annual rate, plus whatever monthly allocation it is given. Anything left over from income after expenses and allocations is projected as cash at no interest, and the chart says how much that is. A credit card balance is always stored as debt, so a positive figure entered there is negated.
 
-The Accounts tab manages savings and credit cards. The Income tab lists each source with its monthly amount. The Expenses tab splits monthly and yearly outgoings. The yearly table also shows each item's monthly equivalent.
+The Accounts tab manages savings and credit cards. Every account records the bank it sits with, so the tab opens with a total held at each one. Moneybox holds the ISAs and the reward savings; RBS holds the current account, the regular saver and the credit cards. The Income tab lists each source with its monthly amount. The Expenses tab splits monthly and yearly outgoings. The yearly table also shows each item's monthly equivalent.
 
 The History tab plots net wealth against actual snapshots. Every write to accounts, income, or expenses captures a snapshot, with consecutive writes within 60 seconds debounced into one entry. A "Snapshot now" button takes a labelled manual capture that the debounce never replaces. A filter narrows the view to manual snapshots only, or to month-end snapshots only.
 
