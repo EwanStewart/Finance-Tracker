@@ -93,7 +93,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 # Moneybox leads the list because it holds the ISAs and the reward savings.
 BANKS = [
     {"name": "Moneybox", "logo": "/logos/moneybox.png"},
-    {"name": "RBS", "logo": "/logos/rbs.svg"},
+    {"name": "RBS", "logo": "/logos/rbs.png"},
 ]
 
 app = FastAPI(title="Finance-Tracker")
