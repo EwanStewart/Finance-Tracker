@@ -1,12 +1,12 @@
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Generator, Literal, Optional
+from typing import Annotated, Any, Generator, Literal, Optional
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, model_validator
+from pydantic import AfterValidator, BaseModel, model_validator
 
 from app.db import (
     capture_snapshot,
@@ -42,8 +42,19 @@ from app.projections import (
 )
 
 
+def _require_name(value: str) -> str:
+    """Reject a blank name before it reaches the database."""
+    cleaned = value.strip()
+    if not cleaned:
+        raise ValueError("name cannot be blank")
+    return cleaned
+
+
+Name = Annotated[str, AfterValidator(_require_name)]
+
+
 class AccountIn(BaseModel):
-    name: str
+    name: Name
     balance_pence: int
     annual_rate_bp: int = 0
     monthly_allocation_pence: int = 0
@@ -58,12 +69,12 @@ class AccountIn(BaseModel):
 
 
 class IncomeIn(BaseModel):
-    name: str
+    name: Name
     monthly_amount_pence: int
 
 
 class ExpenseIn(BaseModel):
-    name: str
+    name: Name
     amount_pence: int
     cadence: Literal["monthly", "yearly"]
     renewal_date: str | None = None

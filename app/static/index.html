@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#0a2240">
     <title>Finance Tracker</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='6'%20fill='%230a2240'/%3E%3Ctext%20x='16'%20y='23'%20font-size='19'%20text-anchor='middle'%20fill='%23ffffff'%20font-family='Arial'%3E£%3C/text%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20fill='%230a2240'/%3E%3Ctext%20x='16'%20y='23'%20font-size='19'%20text-anchor='middle'%20fill='%23ffffff'%20font-family='Arial'%3E£%3C/text%3E%3C/svg%3E">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <style>
         :root {
             --rbs-navy: #0a2240;
@@ -19,6 +21,30 @@
             --rbs-card: #ffffff;
             --rbs-negative: #b8002e;
             --rbs-positive: #1a7f4b;
+            --rbs-grid: #eef0f3;
+            --rbs-alert-bg: #fde9ed;
+            --rbs-field: #ffffff;
+            --rbs-on-navy: #ffffff;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --rbs-navy: #7ea6d8;
+                --rbs-navy-deep: #6b93c4;
+                --rbs-purple: #b98fd8;
+                --rbs-purple-fade: rgba(185, 143, 216, 0.18);
+                --rbs-text: #e8eaed;
+                --rbs-muted: #9aa3ad;
+                --rbs-line: #2b3138;
+                --rbs-bg: #14181d;
+                --rbs-card: #1c2127;
+                --rbs-negative: #ef7b93;
+                --rbs-positive: #62c08c;
+                --rbs-grid: #262c33;
+                --rbs-alert-bg: rgba(239, 123, 147, 0.12);
+                --rbs-field: #1c2127;
+                --rbs-on-navy: #14181d;
+            }
+            header { background: #0a2240; }
         }
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
@@ -107,7 +133,7 @@
         }
         .table-wrap > table { width: max-content; }
         th, td {
-            padding: 0.65rem 0.4rem;
+            padding: 0.65rem 0.75rem;
             text-align: left;
             border-bottom: 1px solid var(--rbs-line);
         }
@@ -122,9 +148,9 @@
             text-align: right;
             font-variant-numeric: tabular-nums;
         }
-        tr.negative td.num.balance { color: var(--rbs-negative); }
+        tr.negative td.num.balance { color: var(--rbs-navy); }
         .alert {
-            background: #fde9ed;
+            background: var(--rbs-alert-bg);
             border: 1px solid var(--rbs-negative);
             color: var(--rbs-negative);
             border-radius: 8px;
@@ -161,7 +187,7 @@
         tbody tr:last-child td { border-bottom: 0; }
         .horizons {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(6, 1fr);
             gap: 0.75rem;
             margin-bottom: 1.5rem;
         }
@@ -185,21 +211,53 @@
             color: var(--rbs-navy);
             font-variant-numeric: tabular-nums;
         }
-        .horizon.custom .label { padding: 0; }
-        .horizon.custom input {
+        .custom-horizon {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            background: var(--rbs-card);
+            border: 1px solid var(--rbs-line);
+            border-radius: 8px;
+            padding: 0.6rem 0.95rem;
+            margin-bottom: 1.5rem;
+        }
+        .custom-horizon .label {
+            color: var(--rbs-muted);
+            font-size: 0.74rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .custom-horizon input {
             font: inherit;
             font-size: 0.85rem;
-            color: var(--rbs-navy);
-            background: transparent;
-            border: 0;
-            border-bottom: 1px dashed var(--rbs-line);
-            width: 100%;
-            padding: 0 0 0.15rem;
-            outline: none;
+            color: var(--rbs-text);
+            background: var(--rbs-field);
+            border: 1px solid var(--rbs-line);
+            border-radius: 3px;
+            padding: 0.2rem 0.4rem;
         }
-        .horizon.custom input:focus { border-bottom-color: var(--rbs-purple); }
+        .custom-horizon .value {
+            font-weight: 600;
+            color: var(--rbs-navy);
+            font-variant-numeric: tabular-nums;
+            margin-left: auto;
+        }
         @media (max-width: 700px) {
             .horizons { grid-template-columns: repeat(2, 1fr); }
+            .custom-horizon input { font-size: 16px; }
+            .custom-horizon .value { margin-left: 0; }
+        }
+        .tag-muted {
+            display: inline-block;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 0.12rem 0.5rem;
+            border-radius: 999px;
+            background: var(--rbs-line);
+            color: var(--rbs-muted);
+            font-weight: 600;
         }
         .cadence-tag {
             display: inline-block;
@@ -243,24 +301,53 @@
             font: inherit;
             border: 1px solid var(--rbs-navy);
             background: var(--rbs-navy);
-            color: #fff;
+            color: var(--rbs-on-navy);
             padding: 0.35rem 0.8rem;
             border-radius: 4px;
             cursor: pointer;
             font-size: 0.85rem;
+            min-height: 32px;
         }
         .btn:hover { background: var(--rbs-navy-deep); }
+        .btn:disabled { opacity: 0.6; cursor: default; }
         .btn-ghost {
             background: transparent;
             color: var(--rbs-navy);
         }
         .btn-ghost:hover { background: rgba(10, 34, 64, 0.06); }
         .btn-danger {
-            border-color: var(--rbs-negative);
+            border-color: transparent;
             background: transparent;
-            color: var(--rbs-negative);
+            color: var(--rbs-muted);
+            text-decoration: underline;
         }
-        .btn-danger:hover { background: rgba(184, 0, 46, 0.08); }
+        .btn-danger:hover { color: var(--rbs-negative); background: transparent; }
+        .btn-danger-solid {
+            border-color: var(--rbs-negative);
+            background: var(--rbs-negative);
+            color: #ffffff;
+            text-decoration: none;
+        }
+        .btn-danger-solid:hover { background: var(--rbs-negative); color: #ffffff; }
+        @media (min-width: 701px) and (hover: hover) {
+            tbody tr .btn-danger { opacity: 0; }
+            tbody tr:hover .btn-danger,
+            tbody tr:focus-within .btn-danger { opacity: 1; }
+        }
+        :focus-visible {
+            outline: 2px solid var(--rbs-purple);
+            outline-offset: 2px;
+        }
+        .link {
+            font: inherit;
+            background: none;
+            border: 0;
+            padding: 0;
+            color: var(--rbs-purple);
+            text-decoration: underline;
+            cursor: pointer;
+            text-align: left;
+        }
         .row-actions { white-space: nowrap; text-align: right; }
         .row-actions .btn { margin-left: 0.3rem; padding: 0.25rem 0.6rem; font-size: 0.78rem; }
         .head-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; }
@@ -273,9 +360,61 @@
             padding: 0.25rem 0.4rem;
             width: 100%;
             min-width: 6rem;
-            background: #fff;
+            background: var(--rbs-field);
+            color: var(--rbs-text);
         }
         .cell-input.num { text-align: right; font-variant-numeric: tabular-nums; }
+        .cell-input[aria-invalid="true"] { border-color: var(--rbs-negative); }
+        .field-error {
+            color: var(--rbs-negative);
+            font-size: 0.75rem;
+            margin-top: 0.2rem;
+            text-align: left;
+        }
+        .input-unit {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.2rem;
+            width: 100%;
+        }
+        .input-unit .unit { color: var(--rbs-muted); font-size: 0.85rem; }
+        .helper-note {
+            color: var(--rbs-muted);
+            font-size: 0.85rem;
+            margin: 0.6rem 0 0;
+        }
+        #yearly-expenses th.num, #yearly-expenses td.num { width: 9rem; }
+        dialog {
+            border: 1px solid var(--rbs-line);
+            border-radius: 8px;
+            background: var(--rbs-card);
+            color: var(--rbs-text);
+            padding: 1.2rem 1.4rem;
+            max-width: 26rem;
+            width: calc(100% - 2rem);
+        }
+        dialog::backdrop { background: rgba(10, 34, 64, 0.45); }
+        dialog h2 { margin: 0 0 0.6rem; font-size: 1rem; color: var(--rbs-navy); }
+        dialog p { margin: 0 0 1rem; font-size: 0.9rem; }
+        .dialog-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        #toast {
+            position: fixed;
+            left: 50%;
+            bottom: 1.25rem;
+            transform: translateX(-50%);
+            background: var(--rbs-navy);
+            color: var(--rbs-on-navy);
+            border-radius: 999px;
+            padding: 0.45rem 1rem;
+            font-size: 0.85rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 10;
+        }
         .tabs {
             display: flex;
             gap: 0.25rem;
@@ -315,7 +454,6 @@
             .horizons { gap: 0.6rem; margin-bottom: 1.25rem; }
             .horizon { padding: 0.7rem 0.75rem; }
             .horizon .value { font-size: 1rem; }
-            .horizon.custom input { font-size: 16px; }
             .tabs { gap: 0; }
             .tabs button { padding: 0.85rem 0.85rem; font-size: 0.95rem; }
             .btn { min-height: 40px; padding: 0.55rem 0.95rem; font-size: 0.9rem; }
@@ -364,6 +502,7 @@
                 padding-top: 0.6rem;
             }
             .table-wrap > table > tbody > tr > td .cell-input { width: auto; flex: 1; }
+            .table-wrap > table > tbody > tr > td .input-unit { flex: 1; }
         }
     </style>
 </head>
@@ -375,16 +514,17 @@
     </header>
     <main>
         <div class="alert" id="app-error" hidden role="alert"></div>
+        <div id="allocation-alert" hidden></div>
         <div class="summary" id="summary"></div>
         <nav class="tabs" id="tabs" role="tablist">
-            <button data-tab="overview" class="active" role="tab" aria-selected="true">Overview</button>
-            <button data-tab="accounts" role="tab" aria-selected="false">Accounts</button>
-            <button data-tab="income" role="tab" aria-selected="false">Income</button>
-            <button data-tab="expenses" role="tab" aria-selected="false">Expenses</button>
-            <button data-tab="history" role="tab" aria-selected="false">History</button>
+            <button data-tab="overview" id="tab-btn-overview" class="active" role="tab" aria-selected="true" aria-controls="tab-overview">Overview</button>
+            <button data-tab="accounts" id="tab-btn-accounts" role="tab" aria-selected="false" aria-controls="tab-accounts" tabindex="-1">Accounts</button>
+            <button data-tab="income" id="tab-btn-income" role="tab" aria-selected="false" aria-controls="tab-income" tabindex="-1">Income</button>
+            <button data-tab="expenses" id="tab-btn-expenses" role="tab" aria-selected="false" aria-controls="tab-expenses" tabindex="-1">Expenses</button>
+            <button data-tab="history" id="tab-btn-history" role="tab" aria-selected="false" aria-controls="tab-history" tabindex="-1">History</button>
         </nav>
 
-        <section class="tab-panel active" id="tab-overview">
+        <section class="tab-panel active" id="tab-overview" role="tabpanel" aria-labelledby="tab-btn-overview">
             <div class="horizons" id="horizons">
                 <div class="horizon" data-months="1">
                     <div class="label">1 month</div>
@@ -402,12 +542,19 @@
                     <div class="label">1 year</div>
                     <div class="value" data-value></div>
                 </div>
-                <div class="horizon custom">
-                    <div class="label">
-                        <input id="custom-date" type="date" aria-label="Custom date">
-                    </div>
-                    <div class="value" id="custom-value">n/a</div>
+                <div class="horizon" data-months="24">
+                    <div class="label">2 years</div>
+                    <div class="value" data-value></div>
                 </div>
+                <div class="horizon" data-months="60">
+                    <div class="label">5 years</div>
+                    <div class="value" data-value></div>
+                </div>
+            </div>
+            <div class="custom-horizon">
+                <label class="label" for="custom-date">Custom date</label>
+                <input id="custom-date" type="date">
+                <div class="value" id="custom-value">Pick a date</div>
             </div>
             <div class="card">
                 <h2>Projected net wealth</h2>
@@ -423,8 +570,7 @@
             </div>
         </section>
 
-        <section class="tab-panel" id="tab-accounts">
-            <div id="allocation-alert" hidden></div>
+        <section class="tab-panel" id="tab-accounts" role="tabpanel" aria-labelledby="tab-btn-accounts">
             <div class="card">
                 <div class="card-head">
                     <h2>Savings</h2>
@@ -455,17 +601,18 @@
                         <thead>
                             <tr>
                                 <th>Name</th>
-                                <th class="num">Balance</th>
+                                <th class="num">Owed</th>
                                 <th></th>
                             </tr>
                         </thead>
                         <tbody></tbody>
                     </table>
                 </div>
+                <p class="helper-note">Enter the amount owed as a positive number.</p>
             </div>
         </section>
 
-        <section class="tab-panel" id="tab-income">
+        <section class="tab-panel" id="tab-income" role="tabpanel" aria-labelledby="tab-btn-income">
             <div class="card">
                 <div class="card-head">
                     <h2>Income</h2>
@@ -486,7 +633,7 @@
             </div>
         </section>
 
-        <section class="tab-panel" id="tab-expenses">
+        <section class="tab-panel" id="tab-expenses" role="tabpanel" aria-labelledby="tab-btn-expenses">
             <div class="card">
                 <div class="card-head">
                     <h2>Monthly expenses</h2>
@@ -527,7 +674,7 @@
             </div>
         </section>
 
-        <section class="tab-panel" id="tab-history">
+        <section class="tab-panel" id="tab-history" role="tabpanel" aria-labelledby="tab-btn-history">
             <div class="card">
                 <div class="card-head">
                     <h2>Net wealth over time</h2>
@@ -541,7 +688,7 @@
                     </div>
                 </div>
                 <canvas id="history-chart" height="120"></canvas>
-                <p id="history-empty" class="empty-note" hidden>No snapshots to plot yet. Press Snapshot now to record where you stand today.</p>
+                <p id="history-empty" class="empty-note" hidden>Nothing to plot yet.</p>
             </div>
             <div class="card" id="snapshot-detail" hidden>
                 <div class="card-head">
@@ -569,32 +716,147 @@
             </div>
         </section>
     </main>
+    <dialog id="confirm-dialog" aria-labelledby="confirm-title">
+        <form method="dialog">
+            <h2 id="confirm-title"></h2>
+            <p id="confirm-body"></p>
+            <div class="dialog-actions">
+                <button class="btn btn-ghost" value="cancel">Cancel</button>
+                <button class="btn btn-danger-solid" id="confirm-accept" value="confirm">Delete</button>
+            </div>
+        </form>
+    </dialog>
+    <dialog id="label-dialog" aria-labelledby="label-dialog-title">
+        <form method="dialog">
+            <h2 id="label-dialog-title">Label this snapshot</h2>
+            <p><label for="label-input">An optional note, so you can find this moment later.</label></p>
+            <input class="cell-input" id="label-input" type="text" maxlength="60">
+            <div class="dialog-actions">
+                <button class="btn btn-ghost" value="cancel">Cancel</button>
+                <button class="btn" value="ok">Take snapshot</button>
+            </div>
+        </form>
+    </dialog>
     <script>
         const NO_VALUE = 'n/a';
+        const cache = { accounts: [], income: [], expenses: [], summary: null };
         const gbp = (pence) => new Intl.NumberFormat('en-GB', {
             style: 'currency', currency: 'GBP'
         }).format(pence / 100);
         const parseMoney = (value) => {
             const cleaned = String(value ?? '').replace(/[£$€,\s]/g, '');
-            const n = parseFloat(cleaned);
-            return Number.isFinite(n) ? n : 0;
+            return /^-?\d*(\.\d+)?$/.test(cleaned) && /\d/.test(cleaned)
+                ? parseFloat(cleaned)
+                : null;
         };
-        const toPence = (value) => Math.round(parseMoney(value) * 100);
+        const parsePercent = (value) => {
+            const cleaned = String(value ?? '').replace(/[%,\s]/g, '');
+            return /^-?\d*(\.\d+)?$/.test(cleaned) && /\d/.test(cleaned)
+                ? parseFloat(cleaned)
+                : null;
+        };
+        const toPence = (value) => Math.round((parseMoney(value) ?? 0) * 100);
+        const toBasisPoints = (value) => Math.round((parsePercent(value) ?? 0) * 100);
+
+        function clearFieldErrors(row) {
+            for (const input of row.querySelectorAll('input')) {
+                input.removeAttribute('aria-invalid');
+            }
+            for (const note of row.querySelectorAll('.field-error')) note.remove();
+        }
+
+        function markInvalid(input, message) {
+            input.setAttribute('aria-invalid', 'true');
+            const note = document.createElement('div');
+            note.className = 'field-error';
+            note.textContent = message;
+            (input.closest('.input-unit') ?? input).insertAdjacentElement('afterend', note);
+        }
+
+        const nameProblem = (input) =>
+            input.value.trim() ? null : 'Enter a name.';
+        const amountProblem = (input) =>
+            parseMoney(input.value) === null ? 'Enter an amount, such as 12.50.' : null;
+        const rateProblem = (input) =>
+            parsePercent(input.value) === null ? 'Enter a rate, such as 3.45.' : null;
+
+        function rowIsValid(row, checks) {
+            clearFieldErrors(row);
+            let firstBad = null;
+            for (const [input, check] of checks) {
+                const problem = check(input);
+                if (problem) {
+                    markInvalid(input, problem);
+                    if (!firstBad) firstBad = input;
+                }
+            }
+            if (firstBad) firstBad.focus();
+            return firstBad === null;
+        }
+
+        let toastTimer = null;
+        function toast(message) {
+            let el = document.getElementById('toast');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'toast';
+                el.setAttribute('role', 'status');
+                el.setAttribute('aria-live', 'polite');
+                document.body.append(el);
+            }
+            el.textContent = message;
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => el.remove(), 2200);
+        }
+
+        async function runBusy(button, busyText, action) {
+            const original = button.textContent;
+            button.disabled = true;
+            button.textContent = busyText;
+            try {
+                await action();
+            } finally {
+                button.disabled = false;
+                button.textContent = original;
+            }
+        }
+
+        const escapeHtml = (value) => String(value ?? '').replace(
+            /[&<>"']/g,
+            (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
+        );
         const gbpShort = (pence) => new Intl.NumberFormat('en-GB', {
             style: 'currency', currency: 'GBP', maximumFractionDigits: 0
         }).format(pence / 100);
         const monthLabel = (m) => m === 0 ? 'Now' : (m < 12 ? `${m} mo` : `${m / 12} yr`);
 
-        function renderSummary(projections) {
-            const find = (m) => projections.find((p) => p.months === m);
-            const today = find(0);
-            const root = document.getElementById('summary');
-            if (!today) return;
+        function summaryTile(label, value) {
             const tile = document.createElement('div');
             tile.className = 'tile';
-            tile.innerHTML = '<div class="label">Today</div>' +
-                `<div class="value">${gbp(today.total_pence)}</div>`;
-            root.appendChild(tile);
+            const labelEl = document.createElement('div');
+            labelEl.className = 'label';
+            labelEl.textContent = label;
+            const valueEl = document.createElement('div');
+            valueEl.className = 'value';
+            valueEl.textContent = value;
+            tile.append(labelEl, valueEl);
+            return tile;
+        }
+
+        function renderSummary(projections, summary) {
+            const today = projections.find((p) => p.months === 0);
+            const root = document.getElementById('summary');
+            const outgoings = (summary?.monthly_expense_pence ?? 0) +
+                (summary?.yearly_monthly_equivalent_pence ?? 0);
+            root.replaceChildren(
+                summaryTile('Today', today ? gbp(today.total_pence) : NO_VALUE),
+                summaryTile('Monthly income', summary ? gbp(summary.income_pence) : NO_VALUE),
+                summaryTile('Monthly outgoings', summary ? gbp(outgoings) : NO_VALUE),
+                summaryTile(
+                    'Available to save',
+                    summary ? gbp(summary.available_to_save_pence) : NO_VALUE
+                )
+            );
         }
 
         function renderHorizons(projections) {
@@ -602,7 +864,7 @@
                 const months = Number(el.dataset.months);
                 const point = projections.find((p) => p.months === months);
                 el.querySelector('[data-value]').textContent =
-                    point ? gbp(point.total_pence) : NO_VALUE;
+                    point ? gbpShort(point.total_pence) : NO_VALUE;
             }
         }
 
@@ -640,6 +902,15 @@
             return fund.stale ? `${priced}. Today's update failed.` : priced;
         }
 
+        function retryButton() {
+            const retry = document.createElement('button');
+            retry.type = 'button';
+            retry.className = 'btn btn-ghost';
+            retry.textContent = 'Retry';
+            retry.addEventListener('click', () => runBusy(retry, 'Retrying…', loadFundPrice));
+            return retry;
+        }
+
         function setFundMessage(text) {
             const message = document.createElement('div');
             message.className = 'meta';
@@ -660,6 +931,7 @@
             const meta = document.createElement('div');
             meta.className = 'meta';
             meta.textContent = fundMetaText(fund);
+            if (fund.stale) meta.append(' ', retryButton());
             document.getElementById('fund').replaceChildren(row, meta);
             if (fund.name) {
                 document.getElementById('fund-name').textContent = fund.name;
@@ -673,6 +945,7 @@
                 renderFundPrice(await response.json());
             } catch (error) {
                 setFundMessage('Price unavailable right now.');
+                document.getElementById('fund').append(' ', retryButton());
             }
         }
 
@@ -688,21 +961,73 @@
             String(date.getDate()).padStart(2, '0'),
         ].join('-');
 
+        let customMonths = null;
+
+        async function renderCustomHorizon() {
+            const output = document.getElementById('custom-value');
+            if (customMonths === null) {
+                output.textContent = 'Pick a date';
+            } else {
+                const data = await getJson(`/projections?months=${customMonths}`);
+                output.textContent = data[0] ? gbpShort(data[0].total_pence) : NO_VALUE;
+            }
+        }
+
         function setupCustomHorizon() {
             const input = document.getElementById('custom-date');
-            const output = document.getElementById('custom-value');
             // Recomputed per use so a tab left open overnight still counts from today.
             input.addEventListener('focus', () => { input.min = localDate(new Date()); });
             input.min = localDate(new Date());
-            input.addEventListener('change', async () => {
-                if (!input.value) {
-                    output.textContent = NO_VALUE;
-                    return;
-                }
-                const months = monthsBetween(new Date(), new Date(input.value + 'T00:00:00'));
-                const data = await getJson(`/projections?months=${months}`);
-                output.textContent = data[0] ? gbp(data[0].total_pence) : NO_VALUE;
+            input.addEventListener('change', () => {
+                customMonths = input.value
+                    ? monthsBetween(new Date(), new Date(input.value + 'T00:00:00'))
+                    : null;
+                renderCustomHorizon();
             });
+        }
+
+        function askConfirm(title, body, confirmText) {
+            const dialog = document.getElementById('confirm-dialog');
+            document.getElementById('confirm-title').textContent = title;
+            document.getElementById('confirm-body').textContent = body;
+            document.getElementById('confirm-accept').textContent = confirmText ?? 'Delete';
+            dialog.returnValue = 'cancel';
+            dialog.showModal();
+            return new Promise((resolve) => {
+                dialog.addEventListener(
+                    'close',
+                    () => resolve(dialog.returnValue === 'confirm'),
+                    { once: true }
+                );
+            });
+        }
+
+        function askSnapshotLabel() {
+            const dialog = document.getElementById('label-dialog');
+            const input = document.getElementById('label-input');
+            input.value = '';
+            dialog.returnValue = 'cancel';
+            dialog.showModal();
+            input.focus();
+            return new Promise((resolve) => {
+                dialog.addEventListener(
+                    'close',
+                    () => resolve(dialog.returnValue === 'ok' ? input.value.trim() : null),
+                    { once: true }
+                );
+            });
+        }
+
+        let openEditRow = null;
+
+        function claimEditSlot() {
+            const free = !openEditRow || !openEditRow.isConnected;
+            if (!free) {
+                const first = openEditRow.querySelector('input');
+                if (first) first.focus();
+                toast('Finish or cancel the row you are editing first.');
+            }
+            return free;
         }
 
         function addRowActions(row, onEdit, onDelete) {
@@ -711,23 +1036,37 @@
             cell.innerHTML = '<button class="btn btn-ghost">Edit</button> <button class="btn btn-danger">Delete</button>';
             const [edit, del] = cell.querySelectorAll('button');
             edit.addEventListener('click', onEdit);
-            del.addEventListener('click', onDelete);
+            del.addEventListener('click', () => runBusy(del, 'Deleting…', onDelete));
         }
 
-        function addEditActions(row, onSave, onCancel) {
+        function addEditActions(row, buildPayload, onSave, onCancel) {
             const cell = row.insertCell();
             cell.className = 'row-actions';
             cell.innerHTML = '<button class="btn">Save</button> <button class="btn btn-ghost">Cancel</button>';
             const [save, cancel] = cell.querySelectorAll('button');
-            save.addEventListener('click', onSave);
-            cancel.addEventListener('click', onCancel);
+            openEditRow = row;
+            const cancelEdit = () => {
+                openEditRow = null;
+                onCancel();
+            };
+            const submit = async () => {
+                const payload = buildPayload();
+                if (!payload) return;
+                await runBusy(save, 'Saving…', async () => {
+                    await onSave(payload);
+                    openEditRow = null;
+                    toast('Saved');
+                });
+            };
+            save.addEventListener('click', submit);
+            cancel.addEventListener('click', cancelEdit);
             row.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter') {
+                if (event.key === 'Enter' && event.target.type !== 'date') {
                     event.preventDefault();
-                    onSave();
+                    submit();
                 } else if (event.key === 'Escape') {
                     event.preventDefault();
-                    onCancel();
+                    cancelEdit();
                 }
             });
             for (const empty of row.parentElement.querySelectorAll('tr.empty')) {
@@ -741,21 +1080,23 @@
             const row = tbody.insertRow();
             row.className = 'editing';
             _labelledInputCell(row, 'Source', false, source?.name ?? '', 'Source');
-            _labelledInputCell(row, 'Monthly', true, source ? (source.monthly_amount_pence / 100).toFixed(2) : '');
-            addEditActions(
-                row,
-                () => {
-                    const inputs = row.querySelectorAll('input');
-                    onSave({
-                        name: inputs[0].value.trim(),
-                        monthly_amount_pence: toPence(inputs[1].value),
-                    });
-                },
-                onCancel
-            );
+            _labelledInputCell(row, 'Monthly', true, source ? (source.monthly_amount_pence / 100).toFixed(2) : '', '0.00', '£');
+            const buildPayload = () => {
+                const inputs = row.querySelectorAll('input');
+                const valid = rowIsValid(row, [
+                    [inputs[0], nameProblem],
+                    [inputs[1], amountProblem],
+                ]);
+                return valid ? {
+                    name: inputs[0].value.trim(),
+                    monthly_amount_pence: toPence(inputs[1].value),
+                } : null;
+            };
+            addEditActions(row, buildPayload, onSave, onCancel);
         }
 
         function renderIncome(sources) {
+            cache.income = sources;
             const tbody = document.querySelector('#income tbody');
             tbody.innerHTML = '';
             for (const s of sources) {
@@ -765,32 +1106,44 @@
                 addRowActions(
                     row,
                     () => {
+                        if (!claimEditSlot()) return;
                         const insertBefore = row.nextSibling;
                         const parent = row.parentElement;
                         row.remove();
                         const tmp = document.createElement('tbody');
                         renderIncomeEditRow(
                             tmp, s,
-                            async (payload) => { await apiPut(`/income/${s.id}`, payload); refresh(); },
-                            () => refresh()
+                            async (payload) => {
+                                await apiPut(`/income/${s.id}`, payload);
+                                await afterWrite('income');
+                            },
+                            () => rerenderSection('income')
                         );
                         parent.insertBefore(tmp.firstElementChild, insertBefore);
                     },
                     async () => {
-                        if (!confirm(`Delete income source "${s.name}"?`)) return;
+                        const confirmed = await askConfirm(
+                            'Delete income source?',
+                            `"${s.name}" of ${gbp(s.monthly_amount_pence)} a month will be removed.`
+                        );
+                        if (!confirmed) return;
                         await apiDelete(`/income/${s.id}`);
-                        refresh();
+                        await afterWrite('income');
                     }
                 );
             }
         }
 
         function startAddIncome() {
+            if (!claimEditSlot()) return;
             const tbody = document.querySelector('#income tbody');
             renderIncomeEditRow(
                 tbody, null,
-                async (payload) => { await apiPost('/income', payload); refresh(); },
-                () => refresh()
+                async (payload) => {
+                    await apiPost('/income', payload);
+                    await afterWrite('income');
+                },
+                () => rerenderSection('income')
             );
         }
 
@@ -798,7 +1151,7 @@
             const row = tbody.insertRow();
             row.className = 'editing';
             _labelledInputCell(row, 'Category', false, expense?.name ?? '', 'Category');
-            _labelledInputCell(row, 'Amount', true, expense ? (expense.amount_pence / 100).toFixed(2) : '');
+            _labelledInputCell(row, 'Amount', true, expense ? (expense.amount_pence / 100).toFixed(2) : '', '0.00', '£');
             if (cadence === 'yearly') {
                 const placeholder = row.insertCell();
                 placeholder.setAttribute('data-label', 'Monthly equivalent');
@@ -806,23 +1159,25 @@
                 placeholder.textContent = '';
                 _labelledDateInputCell(row, 'Renewal date', expense?.renewal_date ?? '');
             }
-            addEditActions(
-                row,
-                () => {
-                    const textInputs = row.querySelectorAll('input[type="text"]');
-                    const dateInput = row.querySelector('input[type="date"]');
-                    const payload = {
-                        name: textInputs[0].value.trim(),
-                        cadence,
-                        amount_pence: toPence(textInputs[1].value),
-                    };
-                    if (cadence === 'yearly') {
-                        payload.renewal_date = dateInput.value || null;
-                    }
-                    onSave(payload);
-                },
-                onCancel
-            );
+            const buildPayload = () => {
+                const textInputs = row.querySelectorAll('input[type="text"]');
+                const dateInput = row.querySelector('input[type="date"]');
+                const valid = rowIsValid(row, [
+                    [textInputs[0], nameProblem],
+                    [textInputs[1], amountProblem],
+                ]);
+                if (!valid) return null;
+                const payload = {
+                    name: textInputs[0].value.trim(),
+                    cadence,
+                    amount_pence: toPence(textInputs[1].value),
+                };
+                if (cadence === 'yearly') {
+                    payload.renewal_date = dateInput.value || null;
+                }
+                return payload;
+            };
+            addEditActions(row, buildPayload, onSave, onCancel);
         }
 
         function renderExpenseRow(tbody, expense) {
@@ -836,26 +1191,36 @@
             addRowActions(
                 row,
                 () => {
+                    if (!claimEditSlot()) return;
                     const insertBefore = row.nextSibling;
                     const parent = row.parentElement;
                     row.remove();
                     const tmp = document.createElement('tbody');
                     renderExpenseEditRow(
                         tmp, expense, expense.cadence,
-                        async (payload) => { await apiPut(`/expenses/${expense.id}`, payload); refresh(); },
-                        () => refresh()
+                        async (payload) => {
+                            await apiPut(`/expenses/${expense.id}`, payload);
+                            await afterWrite('expenses');
+                        },
+                        () => rerenderSection('expenses')
                     );
                     parent.insertBefore(tmp.firstElementChild, insertBefore);
                 },
                 async () => {
-                    if (!confirm(`Delete expense "${expense.name}"?`)) return;
+                    const confirmed = await askConfirm(
+                        'Delete expense?',
+                        `"${expense.name}" of ${gbp(expense.amount_pence)} ` +
+                        `(${expense.cadence}) will be removed.`
+                    );
+                    if (!confirmed) return;
                     await apiDelete(`/expenses/${expense.id}`);
-                    refresh();
+                    await afterWrite('expenses');
                 }
             );
         }
 
         function renderExpenses(expenses) {
+            cache.expenses = expenses;
             const monthlyBody = document.querySelector('#monthly-expenses tbody');
             const yearlyBody = document.querySelector('#yearly-expenses tbody');
             monthlyBody.innerHTML = '';
@@ -866,22 +1231,28 @@
         }
 
         function startAddExpense(cadence) {
+            if (!claimEditSlot()) return;
             const selector = cadence === 'yearly' ? '#yearly-expenses tbody' : '#monthly-expenses tbody';
             const tbody = document.querySelector(selector);
             renderExpenseEditRow(
                 tbody, null, cadence,
-                async (payload) => { await apiPost('/expenses', payload); refresh(); },
-                () => refresh()
+                async (payload) => {
+                    await apiPost('/expenses', payload);
+                    await afterWrite('expenses');
+                },
+                () => rerenderSection('expenses')
             );
         }
+
+        const cssToken = (name) => getComputedStyle(document.documentElement)
+            .getPropertyValue(name).trim();
+        const gridColour = () => cssToken('--rbs-grid');
 
         let chartInstance = null;
         function renderChart(projections) {
             if (chartInstance) chartInstance.destroy();
-            const navy = getComputedStyle(document.documentElement)
-                .getPropertyValue('--rbs-purple').trim();
-            const fade = getComputedStyle(document.documentElement)
-                .getPropertyValue('--rbs-purple-fade').trim();
+            const navy = cssToken('--rbs-purple');
+            const fade = cssToken('--rbs-purple-fade');
             chartInstance = new Chart(document.getElementById('chart'), {
                 type: 'line',
                 data: {
@@ -898,10 +1269,16 @@
                     }],
                 },
                 options: {
-                    plugins: { legend: { display: false } },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: { label: (ctx) => gbp(ctx.parsed.y * 100) },
+                        },
+                    },
                     scales: {
                         y: {
-                            grid: { color: '#eef0f3' },
+                            beginAtZero: true,
+                            grid: { color: gridColour() },
                             ticks: { callback: (v) => gbpShort(v * 100) },
                         },
                         x: { grid: { display: false } },
@@ -912,24 +1289,34 @@
 
         function savingsEditPayload(row) {
             const inputs = row.querySelectorAll('input');
-            return {
+            const valid = rowIsValid(row, [
+                [inputs[0], nameProblem],
+                [inputs[1], amountProblem],
+                [inputs[2], rateProblem],
+                [inputs[3], amountProblem],
+            ]);
+            return valid ? {
                 name: inputs[0].value.trim(),
                 balance_pence: toPence(inputs[1].value),
-                annual_rate_bp: toPence(inputs[2].value),
+                annual_rate_bp: toBasisPoints(inputs[2].value),
                 monthly_allocation_pence: toPence(inputs[3].value),
                 kind: 'savings',
-            };
+            } : null;
         }
 
         function creditCardEditPayload(row) {
             const inputs = row.querySelectorAll('input');
-            return {
+            const valid = rowIsValid(row, [
+                [inputs[0], nameProblem],
+                [inputs[1], amountProblem],
+            ]);
+            return valid ? {
                 name: inputs[0].value.trim(),
-                balance_pence: toPence(inputs[1].value),
+                balance_pence: Math.abs(toPence(inputs[1].value)),
                 annual_rate_bp: 0,
                 monthly_allocation_pence: 0,
                 kind: 'credit_card',
-            };
+            } : null;
         }
 
         function _editInput(row, label, type, value) {
@@ -939,12 +1326,24 @@
             input.type = type;
             input.className = 'cell-input';
             input.value = value ?? '';
+            input.required = true;
             input.setAttribute('aria-label', label);
             cell.append(input);
             return { cell, input };
         }
 
-        function _labelledInputCell(row, label, isNum, value, placeholder) {
+        function _wrapWithUnit(cell, input, unit) {
+            const wrap = document.createElement('span');
+            wrap.className = 'input-unit';
+            const mark = document.createElement('span');
+            mark.className = 'unit';
+            mark.textContent = unit;
+            if (unit === '£') wrap.append(mark, input);
+            else wrap.append(input, mark);
+            cell.replaceChildren(wrap);
+        }
+
+        function _labelledInputCell(row, label, isNum, value, placeholder, unit) {
             const { cell, input } = _editInput(row, label, 'text', value);
             if (isNum) {
                 cell.className = 'num';
@@ -953,10 +1352,12 @@
                 input.autocomplete = 'off';
             }
             if (placeholder) input.placeholder = placeholder;
+            if (unit) _wrapWithUnit(cell, input, unit);
         }
 
         function _labelledDateInputCell(row, label, value) {
-            _editInput(row, label, 'date', value);
+            const { input } = _editInput(row, label, 'date', value);
+            input.required = false;
         }
 
         function formatRenewalDate(value) {
@@ -972,21 +1373,22 @@
             const row = tbody.insertRow();
             row.className = 'editing';
             _labelledInputCell(row, 'Name', false, account?.name ?? '', 'Savings name');
-            _labelledInputCell(row, 'Balance', true, account ? (account.balance_pence / 100).toFixed(2) : '');
-            _labelledInputCell(row, 'Annual rate', true, account ? (account.annual_rate_bp / 100).toFixed(2) : '0');
-            _labelledInputCell(row, 'Monthly allocation', true, account ? (account.monthly_allocation_pence / 100).toFixed(2) : '0');
-            addEditActions(row, () => onSave(savingsEditPayload(row)), onCancel);
+            _labelledInputCell(row, 'Balance', true, account ? (account.balance_pence / 100).toFixed(2) : '', '0.00', '£');
+            _labelledInputCell(row, 'Annual rate', true, account ? (account.annual_rate_bp / 100).toFixed(2) : '0', 'e.g. 3.45', '%');
+            _labelledInputCell(row, 'Monthly allocation', true, account ? (account.monthly_allocation_pence / 100).toFixed(2) : '0', '0.00', '£');
+            addEditActions(row, () => savingsEditPayload(row), onSave, onCancel);
         }
 
         function renderCreditCardEditRow(tbody, account, onSave, onCancel) {
             const row = tbody.insertRow();
             row.className = 'editing';
             _labelledInputCell(row, 'Name', false, account?.name ?? '', 'Card name');
-            _labelledInputCell(row, 'Balance', true, account ? (account.balance_pence / 100).toFixed(2) : '');
-            addEditActions(row, () => onSave(creditCardEditPayload(row)), onCancel);
+            _labelledInputCell(row, 'Owed', true, account ? (Math.abs(account.balance_pence) / 100).toFixed(2) : '', '0.00', '£');
+            addEditActions(row, () => creditCardEditPayload(row), onSave, onCancel);
         }
 
         function startEditAccount(account, existingRow, renderEditRowFn) {
+            if (!claimEditSlot()) return;
             const tbody = existingRow.parentElement;
             const insertBefore = existingRow.nextSibling;
             existingRow.remove();
@@ -994,17 +1396,25 @@
             renderEditRowFn(
                 tmp,
                 account,
-                async (payload) => { await apiPut(`/accounts/${account.id}`, payload); refresh(); },
-                () => refresh()
+                async (payload) => {
+                    await apiPut(`/accounts/${account.id}`, payload);
+                    await afterWrite('accounts');
+                },
+                () => rerenderSection('accounts')
             );
             tbody.insertBefore(tmp.firstElementChild, insertBefore);
         }
 
         async function deleteAccount(account) {
-            const noun = account.kind === 'credit_card' ? 'credit card' : 'account';
-            if (!confirm(`Delete ${noun} "${account.name}"?`)) return;
+            const isCard = account.kind === 'credit_card';
+            const amount = gbp(Math.abs(account.balance_pence));
+            const confirmed = await askConfirm(
+                isCard ? 'Delete credit card?' : 'Delete savings account?',
+                `"${account.name}" with ${amount} ${isCard ? 'owed' : 'saved'} will be removed.`
+            );
+            if (!confirmed) return;
             await apiDelete(`/accounts/${account.id}`);
-            refresh();
+            await afterWrite('accounts');
         }
 
         function _labelledCell(row, label, isNum, text, extraClass) {
@@ -1032,7 +1442,7 @@
             const row = tbody.insertRow();
             row.classList.add('negative');
             _labelledCell(row, 'Name', false, account.name);
-            _labelledCell(row, 'Balance', true, gbp(account.balance_pence), 'balance');
+            _labelledCell(row, 'Owed', true, gbp(account.balance_pence), 'balance');
             addRowActions(
                 row,
                 () => startEditAccount(account, row, renderCreditCardEditRow),
@@ -1070,6 +1480,7 @@
         }
 
         function renderAccounts(accounts) {
+            cache.accounts = accounts;
             const savingsBody = document.querySelector('#savings-accounts tbody');
             const cardsBody = document.querySelector('#credit-cards tbody');
             savingsBody.innerHTML = '';
@@ -1085,20 +1496,28 @@
         }
 
         function startAddSavings() {
+            if (!claimEditSlot()) return;
             const tbody = document.querySelector('#savings-accounts tbody');
             renderSavingsEditRow(
                 tbody, null,
-                async (payload) => { await apiPost('/accounts', payload); refresh(); },
-                () => refresh()
+                async (payload) => {
+                    await apiPost('/accounts', payload);
+                    await afterWrite('accounts');
+                },
+                () => rerenderSection('accounts')
             );
         }
 
         function startAddCreditCard() {
+            if (!claimEditSlot()) return;
             const tbody = document.querySelector('#credit-cards tbody');
             renderCreditCardEditRow(
                 tbody, null,
-                async (payload) => { await apiPost('/accounts', payload); refresh(); },
-                () => refresh()
+                async (payload) => {
+                    await apiPost('/accounts', payload);
+                    await afterWrite('accounts');
+                },
+                () => rerenderSection('accounts')
             );
         }
 
@@ -1152,14 +1571,23 @@
             showError(event.reason?.message ?? 'The request could not be completed.');
         });
 
-        function clearAll() {
-            document.getElementById('summary').innerHTML = '';
-            for (const id of ['income', 'savings-accounts', 'credit-cards', 'monthly-expenses', 'yearly-expenses', 'snapshots']) {
-                document.querySelector(`#${id} tbody`).innerHTML = '';
-            }
-            const alert = document.getElementById('allocation-alert');
-            alert.hidden = true;
-            alert.innerHTML = '';
+        const TABLE_IDS = ['income', 'savings-accounts', 'credit-cards',
+            'monthly-expenses', 'yearly-expenses', 'snapshots'];
+
+        function placeholderRow(id, text) {
+            const table = document.getElementById(id);
+            const tbody = table.querySelector('tbody');
+            tbody.innerHTML = '';
+            const row = tbody.insertRow();
+            row.className = 'empty';
+            const cell = row.insertCell();
+            cell.colSpan = table.querySelectorAll('thead th').length || 1;
+            cell.textContent = text;
+        }
+
+        function showLoadingState() {
+            document.getElementById('summary').replaceChildren(summaryTile('Loading', '…'));
+            for (const id of TABLE_IDS) placeholderRow(id, 'Loading…');
         }
 
         let historyChartInstance = null;
@@ -1171,7 +1599,7 @@
             'credit-cards': 'No credit cards. Add one if you carry a balance.',
             'monthly-expenses': 'No monthly expenses yet.',
             'yearly-expenses': 'No yearly expenses yet.',
-            'snapshots': 'No snapshots yet. Press Snapshot now to record today.',
+            'snapshots': 'Snapshots appear here after your first edit, or press Snapshot now to label a moment.',
         };
 
         function markEmptyTables() {
@@ -1207,8 +1635,22 @@
             return snapshots;
         }
 
+        function historyLabels(snapshots) {
+            let lastYear = null;
+            return snapshots.map((s) => {
+                const date = new Date(s.taken_at);
+                if (Number.isNaN(date.getTime())) return s.taken_at.slice(0, 10);
+                const options = { day: 'numeric', month: 'short' };
+                if (date.getFullYear() !== lastYear) {
+                    options.year = 'numeric';
+                    lastYear = date.getFullYear();
+                }
+                return date.toLocaleDateString('en-GB', options);
+            });
+        }
+
         function renderHistoryChart(snapshots) {
-            const labels = snapshots.map((s) => s.taken_at.slice(0, 10));
+            const labels = historyLabels(snapshots);
             const data = snapshots.map((s) => (s.payload.total_pence ?? 0) / 100);
             if (historyChartInstance) {
                 historyChartInstance.data.labels = labels;
@@ -1216,10 +1658,8 @@
                 historyChartInstance.update();
                 return;
             }
-            const navy = getComputedStyle(document.documentElement)
-                .getPropertyValue('--rbs-purple').trim();
-            const fade = getComputedStyle(document.documentElement)
-                .getPropertyValue('--rbs-purple-fade').trim();
+            const navy = cssToken('--rbs-purple');
+            const fade = cssToken('--rbs-purple-fade');
             historyChartInstance = new Chart(document.getElementById('history-chart'), {
                 type: 'line',
                 data: {
@@ -1236,10 +1676,16 @@
                     }],
                 },
                 options: {
-                    plugins: { legend: { display: false } },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: { label: (ctx) => gbp(ctx.parsed.y * 100) },
+                        },
+                    },
                     scales: {
                         y: {
-                            grid: { color: '#eef0f3' },
+                            beginAtZero: true,
+                            grid: { color: gridColour() },
                             ticks: { callback: (v) => gbpShort(v * 100) },
                         },
                         x: { grid: { display: false } },
@@ -1257,36 +1703,43 @@
             });
         }
 
+        function triggerTag(trigger) {
+            const tag = document.createElement('span');
+            const auto = String(trigger).toLowerCase() !== 'manual';
+            tag.className = auto ? 'tag-muted' : 'cadence-tag';
+            tag.textContent = auto ? 'Auto' : 'Manual';
+            return tag;
+        }
+
         function renderSnapshotsTable(snapshots) {
             const tbody = document.querySelector('#snapshots tbody');
             tbody.innerHTML = '';
             for (const snap of [...snapshots].reverse()) {
                 const row = tbody.insertRow();
-                row.style.cursor = 'pointer';
-                _labelledCell(row, 'Taken', false, formatTaken(snap.taken_at));
-                _labelledCell(row, 'Trigger', false, snap.trigger);
+                const takenCell = _labelledCell(row, 'Taken', false, '');
+                const open = document.createElement('button');
+                open.type = 'button';
+                open.className = 'link';
+                open.textContent = formatTaken(snap.taken_at);
+                open.addEventListener('click', () => showSnapshotDetail(snap));
+                takenCell.append(open);
+                _labelledCell(row, 'Trigger', false, '').append(triggerTag(snap.trigger));
                 _labelledCell(row, 'Label', false, snap.label ?? '');
                 _labelledCell(row, 'Total', true, gbp(snap.payload.total_pence ?? 0));
                 const cell = row.insertCell();
                 cell.className = 'row-actions';
                 cell.innerHTML = '<button class="btn btn-danger">Delete</button>';
                 const deleteBtn = cell.querySelector('button');
-                deleteBtn.addEventListener('click', async (event) => {
-                    event.stopPropagation();
-                    if (!confirm('Delete this snapshot?')) return;
+                deleteBtn.addEventListener('click', () => runBusy(deleteBtn, 'Deleting…', async () => {
+                    const confirmed = await askConfirm(
+                        'Delete snapshot?',
+                        `The snapshot from ${formatTaken(snap.taken_at)} ` +
+                        `totalling ${gbp(snap.payload.total_pence ?? 0)} will be removed.`
+                    );
+                    if (!confirmed) return;
                     await apiDelete(`/snapshots/${snap.id}`);
-                    refreshHistory();
-                });
-                row.tabIndex = 0;
-                row.setAttribute('role', 'button');
-                row.setAttribute('aria-label', `Snapshot from ${formatTaken(snap.taken_at)}`);
-                row.addEventListener('click', () => showSnapshotDetail(snap));
-                row.addEventListener('keydown', (event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        showSnapshotDetail(snap);
-                    }
-                });
+                    await refreshHistory();
+                }));
             }
         }
 
@@ -1294,7 +1747,8 @@
             if (!rows.length) return '';
             const head = headings.map((h, i) => `<th${i > 0 ? ' class="num"' : ''}>${h}</th>`).join('');
             const body = rows.map((cells) => {
-                const tds = cells.map((c, i) => `<td${i > 0 ? ' class="num"' : ''} data-label="${headings[i]}">${c}</td>`).join('');
+                const tds = cells.map((c, i) => `<td${i > 0 ? ' class="num"' : ''} ` +
+                    `data-label="${escapeHtml(headings[i])}">${escapeHtml(c)}</td>`).join('');
                 return `<tr>${tds}</tr>`;
             }).join('');
             return `<h3 style="margin:1rem 0 0.5rem;font-size:1rem;color:var(--rbs-navy);">${title}</h3>` +
@@ -1319,8 +1773,8 @@
             } else {
                 html += _detailTable('Savings', ['Name', 'Balance', 'Annual rate', 'Monthly allocation'],
                     savings.map((a) => [a.name, gbp(a.balance_pence), `${(a.annual_rate_bp / 100).toFixed(2)}%`, gbp(a.monthly_allocation_pence)]));
-                html += _detailTable('Credit cards', ['Name', 'Balance'],
-                    cards.map((a) => [a.name, `<span style="color:var(--rbs-negative);">${gbp(a.balance_pence)}</span>`]));
+                html += _detailTable('Credit cards', ['Name', 'Owed'],
+                    cards.map((a) => [a.name, gbp(a.balance_pence)]));
                 html += _detailTable('Income', ['Source', 'Monthly'],
                     income.map((i) => [i.name, gbp(i.monthly_amount_pence)]));
                 const byAmountDesc = (a, b) => b.amount_pence - a.amount_pence;
@@ -1358,10 +1812,11 @@
         }
 
         async function snapshotNow() {
-            const label = prompt('Label for this snapshot (optional):', '');
+            const label = await askSnapshotLabel();
             if (label === null) return;
-            await apiPost('/snapshots', { label: label.trim() || null });
-            refreshHistory();
+            await apiPost('/snapshots', { label: label || null });
+            await refreshHistory();
+            toast('Snapshot taken');
         }
 
         async function getJson(url) {
@@ -1380,8 +1835,8 @@
                 getJson('/summary'),
             ]);
             hideError();
-            clearAll();
-            renderSummary(projections);
+            cache.summary = summary;
+            renderSummary(projections, summary);
             renderHorizons(projections);
             renderChart(projections);
             renderIncome(income);
@@ -1392,13 +1847,55 @@
             allSnapshots = snapshots;
             renderHistory();
             markEmptyTables();
+            await renderCustomHorizon();
         }
+
+        const SECTION_ENDPOINTS = {
+            income: '/income',
+            expenses: '/expenses',
+        };
+
+        function rerenderSection(section) {
+            if (section === 'accounts') renderAccounts(cache.accounts);
+            if (section === 'income') renderIncome(cache.income);
+            if (section === 'expenses') renderExpenses(cache.expenses);
+            markEmptyTables();
+        }
+
+        // Only the touched table plus the shared totals are redrawn, so the rest
+        // of the page keeps its scroll position and any open row.
+        async function afterWrite(section) {
+            const [projections, summary, accounts, rows] = await Promise.all([
+                getJson('/projections'),
+                getJson('/summary'),
+                getJson('/accounts'),
+                section === 'accounts' ? null : getJson(SECTION_ENDPOINTS[section]),
+            ]);
+            hideError();
+            cache.summary = summary;
+            cache.accounts = accounts;
+            renderSummary(projections, summary);
+            renderHorizons(projections);
+            renderChart(projections);
+            renderAllocationAlert(accounts, summary);
+            renderSurplusNote(summary);
+            if (section === 'accounts') renderAccounts(accounts);
+            if (section === 'income') renderIncome(rows);
+            if (section === 'expenses') renderExpenses(rows);
+            markEmptyTables();
+            await renderCustomHorizon();
+            // Every write records a snapshot on the server.
+            await refreshHistory();
+        }
+
+        const TAB_NAMES = ['overview', 'accounts', 'income', 'expenses', 'history'];
 
         function activateTab(name) {
             document.querySelectorAll('#tabs button').forEach((b) => {
                 const active = b.dataset.tab === name;
                 b.classList.toggle('active', active);
                 b.setAttribute('aria-selected', active ? 'true' : 'false');
+                b.tabIndex = active ? 0 : -1;
                 if (active) b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
             });
             document.querySelectorAll('.tab-panel').forEach((p) => {
@@ -1414,8 +1911,32 @@
         document.querySelectorAll('#tabs button').forEach((b) => {
             b.addEventListener('click', () => activateTab(b.dataset.tab));
         });
+
+        const TAB_STEPS = { ArrowRight: 1, ArrowLeft: -1 };
+
+        function nextTabName(key, current) {
+            const index = TAB_NAMES.indexOf(current);
+            let target = null;
+            if (key === 'Home') target = 0;
+            else if (key === 'End') target = TAB_NAMES.length - 1;
+            else if (key in TAB_STEPS) {
+                target = (index + TAB_STEPS[key] + TAB_NAMES.length) % TAB_NAMES.length;
+            }
+            return target === null ? null : TAB_NAMES[target];
+        }
+
+        document.getElementById('tabs').addEventListener('keydown', (event) => {
+            const current = event.target.dataset?.tab;
+            if (!current) return;
+            const name = nextTabName(event.key, current);
+            if (!name) return;
+            event.preventDefault();
+            activateTab(name);
+            document.getElementById(`tab-btn-${name}`).focus();
+        });
+
         const initialTab = location.hash.replace('#', '') || 'overview';
-        if (['overview', 'accounts', 'income', 'expenses', 'history'].includes(initialTab)) {
+        if (TAB_NAMES.includes(initialTab)) {
             activateTab(initialTab);
         }
         document.getElementById('add-savings').addEventListener('click', startAddSavings);
@@ -1423,10 +1944,12 @@
         document.getElementById('add-income').addEventListener('click', startAddIncome);
         document.getElementById('add-monthly-expense').addEventListener('click', () => startAddExpense('monthly'));
         document.getElementById('add-yearly-expense').addEventListener('click', () => startAddExpense('yearly'));
-        document.getElementById('snapshot-now').addEventListener('click', snapshotNow);
+        const snapshotButton = document.getElementById('snapshot-now');
+        snapshotButton.addEventListener('click', () => runBusy(snapshotButton, 'Working…', snapshotNow));
         document.getElementById('history-filter').addEventListener('change', renderHistory);
         document.getElementById('snapshot-detail-close').addEventListener('click', hideSnapshotDetail);
         setupCustomHorizon();
+        showLoadingState();
         refresh();
         loadFundPrice();
     </script>
