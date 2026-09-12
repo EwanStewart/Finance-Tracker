@@ -97,3 +97,12 @@ ssh "$PI_HOST" bash ~/finance-tracker/deploy/update.sh
 ```bash
 python -m pytest -q
 ```
+
+The page itself has no rendering test, so layout is checked separately. With the
+app running, this drives headless Chrome at six phone and tablet viewports, opens
+a row editor on every tab, and fails on a sideways scroll, a tap target under
+44px, or a text field small enough to make iOS Safari zoom:
+
+```bash
+python scripts/audit_layout.py http://127.0.0.1:8000/
+```

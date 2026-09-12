@@ -96,9 +96,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
         )
         conn.commit()
     if "bank" not in account_columns:
-        conn.execute(
-            "ALTER TABLE accounts ADD COLUMN bank TEXT NOT NULL DEFAULT 'RBS'"
-        )
+        conn.execute("ALTER TABLE accounts ADD COLUMN bank TEXT NOT NULL DEFAULT 'RBS'")
         _backfill_banks(conn)
     if "accrues_interest" not in account_columns:
         conn.execute(
@@ -284,9 +282,7 @@ def get_pension(conn: sqlite3.Connection, pension_id: int) -> Optional[Pension]:
     return Pension(**dict(row)) if row is not None else None
 
 
-def update_pension(
-    conn: sqlite3.Connection, pension_id: int, pension: Pension
-) -> bool:
+def update_pension(conn: sqlite3.Connection, pension_id: int, pension: Pension) -> bool:
     cursor = conn.execute(
         "UPDATE pensions SET name = ?, provider = ?, employer = ?, value_pence = ?, "
         "monthly_contribution_pence = ?, annual_growth_bp = ?, status = ? "

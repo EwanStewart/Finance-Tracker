@@ -498,7 +498,9 @@
         }
         .tab-panel { display: none; }
         .tab-panel.active { display: block; }
-        @media (max-width: 700px) {
+        /* Stacked cards for phones, and for any touch screen too narrow to
+           read a wide table comfortably, such as a small tablet. */
+        @media (max-width: 700px), (hover: none) and (pointer: coarse) and (max-width: 900px) {
             /* Wrap rather than scroll, so no tab can hide off the edge. */
             .tabs { flex-wrap: wrap; overflow-x: visible; }
             .tabs button { padding: 0.6rem 0.7rem; font-size: 0.92rem; }
@@ -513,10 +515,22 @@
             .horizon .value { font-size: 1rem; }
             .tabs { gap: 0; }
             .tabs button { padding: 0.85rem 0.85rem; font-size: 0.95rem; }
-            .btn { min-height: 40px; padding: 0.55rem 0.95rem; font-size: 0.9rem; }
-            .row-actions .btn { min-height: 36px; padding: 0.45rem 0.75rem; }
+            .btn { min-height: 44px; padding: 0.6rem 0.95rem; font-size: 0.9rem; }
+            .row-actions .btn { min-height: 44px; padding: 0.5rem 0.8rem; }
             .card-head { flex-wrap: wrap; gap: 0.5rem; }
-            .cell-input { font-size: 16px; min-width: 0; }
+            /* 16px keeps iOS Safari from zooming the page on focus, and the
+               shorthand on select.cell-input has to be beaten explicitly. */
+            .cell-input, select.cell-input { font-size: 16px; min-width: 0; min-height: 44px; }
+            .bank-picker { min-width: 0; }
+            /* Everything a thumb lands on clears 44px, including the date
+               picker, the interest tick box and the snapshot links. */
+            #custom-date { min-height: 44px; font-size: 16px; }
+            .tick-label { min-height: 44px; min-width: 44px; justify-content: flex-end; }
+            /* The stacked row already labels the cell, so the tick needs no words. */
+            .tick-text { display: none; }
+            .input-unit { min-width: 0; }
+            button.link { min-height: 44px; }
+            .bank-picker select { flex: 1; min-width: 0; }
             /* Stacked row-cards: each table row becomes a labelled vertical list */
             .table-wrap { overflow-x: visible; }
             .table-wrap > table { width: 100%; min-width: 0; display: block; }
@@ -560,6 +574,12 @@
             }
             .table-wrap > table > tbody > tr > td .cell-input { width: auto; flex: 1; }
             .table-wrap > table > tbody > tr > td .input-unit { flex: 1; }
+        }
+        /* A touch tablet runs the desktop layout, but still needs thumb-sized
+           controls, so the sizing travels with the pointer, not the width. */
+        @media (hover: none) and (pointer: coarse) {
+            .btn, .row-actions .btn, button.link { min-height: 44px; }
+            .cell-input, select.cell-input, #custom-date { font-size: 16px; min-height: 44px; }
         }
     </style>
 </head>
@@ -1625,7 +1645,10 @@
             box.setAttribute('aria-label', 'Pays interest');
             const label = document.createElement('label');
             label.className = 'tick-label';
-            label.append(box, document.createTextNode('Pays interest'));
+            const text = document.createElement('span');
+            text.className = 'tick-text';
+            text.textContent = 'Pays interest';
+            label.append(box, text);
             cell.append(label);
         }
 
