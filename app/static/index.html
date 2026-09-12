@@ -631,9 +631,16 @@
         <section class="tab-panel" id="tab-accounts" role="tabpanel" aria-labelledby="tab-btn-accounts">
             <div class="card">
                 <div class="card-head">
-                    <h2>Money with each bank and provider</h2>
+                    <h2>Money with each bank</h2>
                 </div>
                 <div class="bank-totals" id="bank-totals"></div>
+            </div>
+            <div class="card">
+                <div class="card-head">
+                    <h2>Money with each pension provider</h2>
+                </div>
+                <div class="bank-totals" id="account-provider-totals"></div>
+                <p class="helper-note">Pension money is locked away, so it stays out of net wealth.</p>
             </div>
             <div class="card">
                 <div class="card-head">
@@ -971,10 +978,11 @@
         }
 
         function renderBankTotals(accounts) {
-            // Pension providers sit alongside the banks, so one strip shows every holder.
+            renderTotalCards(document.getElementById('bank-totals'), bankTotals(accounts));
+            // Pensions get their own strip on the Accounts tab, apart from the banks.
             renderTotalCards(
-                document.getElementById('bank-totals'),
-                bankTotals(accounts).concat(providerTotals(cache.pensions))
+                document.getElementById('account-provider-totals'),
+                providerTotals(cache.pensions)
             );
         }
 
