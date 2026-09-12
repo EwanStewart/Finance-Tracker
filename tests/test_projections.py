@@ -2,9 +2,11 @@ from app.projections import (
     Account,
     Expense,
     IncomeSource,
+    monthly_interest,
     monthly_summary,
     project_balance,
     project_total,
+    total_monthly_interest,
     unallocated_surplus,
 )
 
@@ -146,3 +148,35 @@ def test_monthly_summary_subtracts_monthly_and_yearly_expenses():
     assert result["yearly_expense_pence"] == 900_00
     assert result["yearly_monthly_equivalent_pence"] == round(900_00 / 12)
     assert result["available_to_save_pence"] == 2_954_00 - 210_90 - round(900_00 / 12)
+
+
+def test_monthly_interest_divides_the_annual_rate_over_twelve_months():
+    account = Account(name="Cash ISA", balance_pence=10_000_00, annual_rate_bp=345)
+
+    assert monthly_interest(account) == 2_875
+
+
+def test_monthly_interest_is_zero_without_a_rate():
+    account = Account(name="Current", balance_pence=5_000_00, annual_rate_bp=0)
+
+    assert monthly_interest(account) == 0
+
+
+def test_monthly_interest_on_a_card_balance_is_a_charge():
+    card = Account(
+        name="Credit card",
+        balance_pence=-1_200_00,
+        annual_rate_bp=2400,
+        kind="credit_card",
+    )
+
+    assert monthly_interest(card) == -2_400
+
+
+def test_total_monthly_interest_adds_every_account():
+    accounts = [
+        Account(name="Cash ISA", balance_pence=10_000_00, annual_rate_bp=345),
+        Account(name="Reward saver", balance_pence=2_000_00, annual_rate_bp=600),
+    ]
+
+    assert total_monthly_interest(accounts) == 2_875 + 1_000

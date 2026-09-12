@@ -639,6 +639,7 @@
                                 <th>Bank</th>
                                 <th class="num">Balance</th>
                                 <th class="num">Annual rate</th>
+                                <th class="num">Monthly interest</th>
                                 <th class="num">Monthly allocation</th>
                                 <th></th>
                             </tr>
@@ -646,6 +647,7 @@
                         <tbody></tbody>
                     </table>
                 </div>
+                <p class="helper-note" id="savings-interest-total"></p>
             </div>
             <div class="card">
                 <div class="card-head">
@@ -1519,6 +1521,10 @@
             _bankSelectCell(row, account?.bank ?? 'Moneybox');
             _labelledInputCell(row, 'Balance', true, account ? (account.balance_pence / 100).toFixed(2) : '', '0.00', '£');
             _labelledInputCell(row, 'Annual rate', true, account ? (account.annual_rate_bp / 100).toFixed(2) : '0', 'e.g. 3.45', '%');
+            const interest = row.insertCell();
+            interest.setAttribute('data-label', 'Monthly interest');
+            interest.className = 'num';
+            interest.textContent = '';
             _labelledInputCell(row, 'Monthly allocation', true, account ? (account.monthly_allocation_pence / 100).toFixed(2) : '0', '0.00', '£');
             addEditActions(row, () => savingsEditPayload(row), onSave, onCancel);
         }
@@ -1576,6 +1582,7 @@
             _bankCell(row, account.bank);
             _labelledCell(row, 'Balance', true, gbp(account.balance_pence), 'balance');
             _labelledCell(row, 'Annual rate', true, (account.annual_rate_bp / 100).toFixed(2) + '%');
+            _labelledCell(row, 'Monthly interest', true, gbp(monthlyInterest(account)));
             _labelledCell(row, 'Monthly allocation', true, gbp(account.monthly_allocation_pence));
             addRowActions(
                 row,
@@ -1626,6 +1633,19 @@
             }
         }
 
+        function monthlyInterest(account) {
+            return account.monthly_interest_pence
+                ?? Math.round(account.balance_pence * account.annual_rate_bp / 10000 / 12);
+        }
+
+        function renderSavingsInterestTotal(accounts) {
+            const note = document.getElementById('savings-interest-total');
+            const total = accounts
+                .filter((a) => a.kind !== 'credit_card')
+                .reduce((sum, a) => sum + monthlyInterest(a), 0);
+            note.textContent = `Savings accrue ${gbp(total)} of interest a month, ${gbp(total * 12)} a year.`;
+        }
+
         function renderAccounts(accounts) {
             cache.accounts = accounts;
             const savingsBody = document.querySelector('#savings-accounts tbody');
@@ -1641,6 +1661,7 @@
             for (const a of savings) renderSavingsRow(savingsBody, a);
             for (const a of cards) renderCreditCardRow(cardsBody, a);
             renderBankTotals(accounts);
+            renderSavingsInterestTotal(accounts);
         }
 
         function startAddSavings() {

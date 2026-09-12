@@ -46,6 +46,7 @@ def test_get_accounts_returns_inserted_accounts():
             "kind": "savings",
             "bank": "RBS",
             "id": 1,
+            "monthly_interest_pence": 8_608,
         }
     ]
 
@@ -253,3 +254,33 @@ def test_get_summary_returns_available_to_save():
     assert body["yearly_expense_pence"] == 900_00
     assert body["yearly_monthly_equivalent_pence"] == 75_00
     assert body["available_to_save_pence"] == 2_954_00 - 200_00 - 75_00
+
+
+def test_get_accounts_includes_monthly_interest():
+    conn = connect(":memory:")
+    insert_account(
+        conn,
+        Account(name="Cash ISA", balance_pence=10_000_00, annual_rate_bp=345),
+    )
+    client = _client_with_db(conn)
+
+    response = client.get("/accounts")
+
+    assert response.json()[0]["monthly_interest_pence"] == 2_875
+
+
+def test_summary_totals_monthly_interest_across_accounts():
+    conn = connect(":memory:")
+    insert_account(
+        conn,
+        Account(name="Cash ISA", balance_pence=10_000_00, annual_rate_bp=345),
+    )
+    insert_account(
+        conn,
+        Account(name="Reward saver", balance_pence=2_000_00, annual_rate_bp=600),
+    )
+    client = _client_with_db(conn)
+
+    response = client.get("/summary")
+
+    assert response.json()["monthly_interest_pence"] == 2_875 + 1_000

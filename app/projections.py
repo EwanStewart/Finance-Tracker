@@ -80,6 +80,19 @@ def project_balance(
     return result
 
 
+def monthly_interest(account: Account) -> int:
+    """Interest an account accrues in one month at its own annual rate.
+
+    A credit card balance is held negative, so its interest comes out
+    negative too: money charged rather than earned.
+    """
+    return round(account.balance_pence * account.annual_rate_bp / 10_000 / 12)
+
+
+def total_monthly_interest(accounts: Iterable[Account]) -> int:
+    return sum(monthly_interest(account) for account in accounts)
+
+
 def project_total(
     accounts: Iterable[Account], months: int, surplus_pence: int = 0
 ) -> int:

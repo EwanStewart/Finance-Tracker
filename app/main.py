@@ -37,8 +37,10 @@ from app.projections import (
     Account,
     Expense,
     IncomeSource,
+    monthly_interest,
     monthly_summary,
     project_total,
+    total_monthly_interest,
     unallocated_surplus,
 )
 
@@ -125,10 +127,16 @@ def get_banks() -> list[dict]:
     return BANKS
 
 
+def _account_payload(account: Account) -> dict:
+    payload = asdict(account)
+    payload["monthly_interest_pence"] = monthly_interest(account)
+    return payload
+
+
 @app.get("/accounts")
 def get_accounts(db=Depends(get_db)) -> list[dict]:
     accounts = list_accounts(db)
-    return [asdict(account) for account in accounts]
+    return [_account_payload(account) for account in accounts]
 
 
 @app.get("/projections")
@@ -154,7 +162,7 @@ def create_account(payload: AccountIn, db=Depends(get_db)) -> dict:
     account = Account(**payload.model_dump())
     account_id = insert_account(db, account)
     capture_snapshot(db, trigger="Write")
-    return asdict(get_account(db, account_id))
+    return _account_payload(get_account(db, account_id))
 
 
 @app.put("/accounts/{account_id}")
@@ -164,7 +172,7 @@ def replace_account(account_id: int, payload: AccountIn, db=Depends(get_db)) -> 
     if not changed:
         raise HTTPException(status_code=404, detail="account not found")
     capture_snapshot(db, trigger="Write")
-    return asdict(get_account(db, account_id))
+    return _account_payload(get_account(db, account_id))
 
 
 @app.delete("/accounts/{account_id}", status_code=204)
@@ -285,9 +293,11 @@ def _monthly_surplus(db, accounts) -> int:
 @app.get("/summary")
 def get_summary(db=Depends(get_db)) -> dict:
     summary = monthly_summary(list_income_sources(db), list_expenses(db))
+    accounts = list_accounts(db)
     summary["unallocated_surplus_pence"] = unallocated_surplus(
-        list_accounts(db), summary["available_to_save_pence"]
+        accounts, summary["available_to_save_pence"]
     )
+    summary["monthly_interest_pence"] = total_monthly_interest(accounts)
     return summary
 
 
