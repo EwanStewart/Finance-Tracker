@@ -180,3 +180,14 @@ def test_total_monthly_interest_adds_every_account():
     ]
 
     assert total_monthly_interest(accounts) == 2_875 + 1_000
+
+
+def test_an_investment_account_accrues_no_interest():
+    account = Account(
+        name="S&S ISA",
+        balance_pence=17_615_25,
+        annual_rate_bp=1110,
+        accrues_interest=False,
+    )
+
+    assert monthly_interest(account) == 0

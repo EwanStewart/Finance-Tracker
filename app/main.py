@@ -63,6 +63,7 @@ class AccountIn(BaseModel):
     monthly_allocation_pence: int = 0
     kind: Literal["savings", "credit_card"] = "savings"
     bank: Literal["Moneybox", "RBS"] = "RBS"
+    accrues_interest: bool = True
 
     @model_validator(mode="after")
     def card_balance_is_debt(self) -> "AccountIn":

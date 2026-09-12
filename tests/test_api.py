@@ -46,6 +46,7 @@ def test_get_accounts_returns_inserted_accounts():
             "kind": "savings",
             "bank": "RBS",
             "id": 1,
+            "accrues_interest": True,
             "monthly_interest_pence": 8_608,
         }
     ]

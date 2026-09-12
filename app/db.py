@@ -22,7 +22,8 @@ CREATE TABLE IF NOT EXISTS accounts (
     annual_rate_bp INTEGER NOT NULL DEFAULT 0,
     monthly_allocation_pence INTEGER NOT NULL DEFAULT 0,
     kind TEXT NOT NULL DEFAULT 'savings' CHECK (kind IN ('savings', 'credit_card')),
-    bank TEXT NOT NULL DEFAULT 'RBS' CHECK (bank IN ('Moneybox', 'RBS'))
+    bank TEXT NOT NULL DEFAULT 'RBS' CHECK (bank IN ('Moneybox', 'RBS')),
+    accrues_interest INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS income_sources (
@@ -85,6 +86,12 @@ def _migrate(conn: sqlite3.Connection) -> None:
             "ALTER TABLE accounts ADD COLUMN bank TEXT NOT NULL DEFAULT 'RBS'"
         )
         _backfill_banks(conn)
+    if "accrues_interest" not in account_columns:
+        conn.execute(
+            "ALTER TABLE accounts ADD COLUMN accrues_interest INTEGER NOT NULL "
+            "DEFAULT 1"
+        )
+        conn.commit()
     expense_columns = [
         row["name"] for row in conn.execute("PRAGMA table_info(expenses)").fetchall()
     ]
@@ -141,13 +148,22 @@ def _migrate_snapshot_trigger_case(conn: sqlite3.Connection) -> None:
 
 INSERT_SQL = (
     "INSERT INTO accounts "
-    "(name, balance_pence, annual_rate_bp, monthly_allocation_pence, kind, bank) "
-    "VALUES (?, ?, ?, ?, ?, ?)"
+    "(name, balance_pence, annual_rate_bp, monthly_allocation_pence, kind, bank, "
+    "accrues_interest) "
+    "VALUES (?, ?, ?, ?, ?, ?, ?)"
 )
 
 _ACCOUNT_COLUMNS = (
-    "id, name, balance_pence, annual_rate_bp, monthly_allocation_pence, kind, bank"
+    "id, name, balance_pence, annual_rate_bp, monthly_allocation_pence, kind, "
+    "bank, accrues_interest"
 )
+
+
+def _row_to_account(row: sqlite3.Row) -> Account:
+    """Turn a row into an Account, restoring the flag SQLite stores as 0 or 1."""
+    fields = dict(row)
+    fields["accrues_interest"] = bool(fields["accrues_interest"])
+    return Account(**fields)
 
 
 def insert_account(conn: sqlite3.Connection, account: Account) -> int:
@@ -160,6 +176,7 @@ def insert_account(conn: sqlite3.Connection, account: Account) -> int:
             account.monthly_allocation_pence,
             account.kind,
             account.bank,
+            int(account.accrues_interest),
         ),
     )
     conn.commit()
@@ -170,7 +187,7 @@ def list_accounts(conn: sqlite3.Connection) -> list[Account]:
     rows = conn.execute(
         f"SELECT {_ACCOUNT_COLUMNS} FROM accounts ORDER BY id"
     ).fetchall()
-    return [Account(**dict(row)) for row in rows]
+    return [_row_to_account(row) for row in rows]
 
 
 def get_account(conn: sqlite3.Connection, account_id: int) -> Optional[Account]:
@@ -178,13 +195,14 @@ def get_account(conn: sqlite3.Connection, account_id: int) -> Optional[Account]:
         f"SELECT {_ACCOUNT_COLUMNS} FROM accounts WHERE id = ?",
         (account_id,),
     ).fetchone()
-    return Account(**dict(row)) if row is not None else None
+    return _row_to_account(row) if row is not None else None
 
 
 def update_account(conn: sqlite3.Connection, account_id: int, account: Account) -> bool:
     cursor = conn.execute(
         "UPDATE accounts SET name = ?, balance_pence = ?, annual_rate_bp = ?, "
-        "monthly_allocation_pence = ?, kind = ?, bank = ? WHERE id = ?",
+        "monthly_allocation_pence = ?, kind = ?, bank = ?, "
+        "accrues_interest = ? WHERE id = ?",
         (
             account.name,
             account.balance_pence,
@@ -192,6 +210,7 @@ def update_account(conn: sqlite3.Connection, account_id: int, account: Account) 
             account.monthly_allocation_pence,
             account.kind,
             account.bank,
+            int(account.accrues_interest),
             account_id,
         ),
     )
@@ -318,6 +337,7 @@ def replace_accounts(conn: sqlite3.Connection, accounts: Iterable[Account]) -> N
             a.monthly_allocation_pence,
             a.kind,
             a.bank,
+            int(a.accrues_interest),
         )
         for a in accounts
     ]

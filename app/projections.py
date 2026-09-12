@@ -32,6 +32,7 @@ class Account:
     monthly_allocation_pence: int = 0
     kind: AccountKind = "savings"
     bank: Bank = "RBS"
+    accrues_interest: bool = True
     id: Optional[int] = None
 
 
@@ -84,9 +85,14 @@ def monthly_interest(account: Account) -> int:
     """Interest an account accrues in one month at its own annual rate.
 
     A credit card balance is held negative, so its interest comes out
-    negative too: money charged rather than earned.
+    negative too: money charged rather than earned. An investment account
+    accrues nothing: its rate is an expected return, not paid interest.
     """
-    return round(account.balance_pence * account.annual_rate_bp / 10_000 / 12)
+    if not account.accrues_interest:
+        result = 0
+    else:
+        result = round(account.balance_pence * account.annual_rate_bp / 10_000 / 12)
+    return result
 
 
 def total_monthly_interest(accounts: Iterable[Account]) -> int:

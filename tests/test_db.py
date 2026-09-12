@@ -186,3 +186,33 @@ def test_trigger_case_migration_leaves_a_migrated_database_alone(tmp_path):
     snapshots = list_snapshots(connect(db))
 
     assert len(snapshots) == 2
+
+
+def test_account_round_trips_the_accrues_interest_flag():
+    conn = connect(":memory:")
+    account_id = insert_account(
+        conn,
+        Account(name="S&S ISA", balance_pence=100_00, accrues_interest=False),
+    )
+
+    assert get_account(conn, account_id).accrues_interest is False
+
+
+def test_accounts_accrue_interest_by_default():
+    conn = connect(":memory:")
+    account_id = insert_account(conn, Account(name="Cash ISA", balance_pence=100_00))
+
+    assert get_account(conn, account_id).accrues_interest is True
+
+
+def test_updating_an_account_keeps_the_accrues_interest_flag():
+    conn = connect(":memory:")
+    account_id = insert_account(conn, Account(name="S&S ISA", balance_pence=100_00))
+
+    update_account(
+        conn,
+        account_id,
+        Account(name="S&S ISA", balance_pence=200_00, accrues_interest=False),
+    )
+
+    assert get_account(conn, account_id).accrues_interest is False

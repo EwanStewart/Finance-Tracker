@@ -427,6 +427,14 @@
             width: 100%;
         }
         .input-unit .unit { color: var(--rbs-muted); font-size: 0.85rem; }
+        .tick-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.85rem;
+            color: var(--rbs-muted);
+            white-space: nowrap;
+        }
         .helper-note {
             color: var(--rbs-muted);
             font-size: 0.85rem;
@@ -1431,7 +1439,7 @@
         }
 
         function savingsEditPayload(row) {
-            const inputs = row.querySelectorAll('input');
+            const inputs = row.querySelectorAll('input[type="text"]');
             const valid = rowIsValid(row, [
                 [inputs[0], nameProblem],
                 [inputs[1], amountProblem],
@@ -1445,6 +1453,7 @@
                 monthly_allocation_pence: toPence(inputs[3].value),
                 kind: 'savings',
                 bank: rowBank(row),
+                accrues_interest: row.querySelector('.accrues-interest').checked,
             } : null;
         }
 
@@ -1500,6 +1509,21 @@
             if (unit) _wrapWithUnit(cell, input, unit);
         }
 
+        function _accruesInterestCell(row, checked) {
+            const cell = row.insertCell();
+            cell.setAttribute('data-label', 'Monthly interest');
+            cell.className = 'num';
+            const box = document.createElement('input');
+            box.type = 'checkbox';
+            box.className = 'accrues-interest';
+            box.checked = checked;
+            box.setAttribute('aria-label', 'Pays interest');
+            const label = document.createElement('label');
+            label.className = 'tick-label';
+            label.append(box, document.createTextNode('Pays interest'));
+            cell.append(label);
+        }
+
         function _labelledDateInputCell(row, label, value) {
             const { input } = _editInput(row, label, 'date', value);
             input.required = false;
@@ -1521,10 +1545,7 @@
             _bankSelectCell(row, account?.bank ?? 'Moneybox');
             _labelledInputCell(row, 'Balance', true, account ? (account.balance_pence / 100).toFixed(2) : '', '0.00', '£');
             _labelledInputCell(row, 'Annual rate', true, account ? (account.annual_rate_bp / 100).toFixed(2) : '0', 'e.g. 3.45', '%');
-            const interest = row.insertCell();
-            interest.setAttribute('data-label', 'Monthly interest');
-            interest.className = 'num';
-            interest.textContent = '';
+            _accruesInterestCell(row, account ? account.accrues_interest !== false : true);
             _labelledInputCell(row, 'Monthly allocation', true, account ? (account.monthly_allocation_pence / 100).toFixed(2) : '0', '0.00', '£');
             addEditActions(row, () => savingsEditPayload(row), onSave, onCancel);
         }
@@ -1582,7 +1603,8 @@
             _bankCell(row, account.bank);
             _labelledCell(row, 'Balance', true, gbp(account.balance_pence), 'balance');
             _labelledCell(row, 'Annual rate', true, (account.annual_rate_bp / 100).toFixed(2) + '%');
-            _labelledCell(row, 'Monthly interest', true, gbp(monthlyInterest(account)));
+            _labelledCell(row, 'Monthly interest', true,
+                account.accrues_interest === false ? '\u2014' : gbp(monthlyInterest(account)));
             _labelledCell(row, 'Monthly allocation', true, gbp(account.monthly_allocation_pence));
             addRowActions(
                 row,
@@ -1634,6 +1656,7 @@
         }
 
         function monthlyInterest(account) {
+            if (account.accrues_interest === false) return 0;
             return account.monthly_interest_pence
                 ?? Math.round(account.balance_pence * account.annual_rate_bp / 10000 / 12);
         }
