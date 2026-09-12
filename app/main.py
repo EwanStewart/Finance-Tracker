@@ -20,25 +20,32 @@ from app.db import (
     get_expense,
     get_fund_price,
     get_income_source,
+    get_pension,
     insert_account,
     insert_expense,
     insert_income_source,
+    insert_pension,
     list_accounts,
     list_expenses,
     list_income_sources,
+    list_pensions,
     list_snapshots,
     save_fund_price,
     update_account,
     update_expense,
     update_income_source,
+    update_pension,
 )
 from app.fund import FACTSHEET_URL, FUND_ISIN, FundPriceError, fetch_price
 from app.projections import (
     Account,
     Expense,
     IncomeSource,
+    Pension,
     monthly_interest,
     monthly_summary,
+    pension_total,
+    project_pension_total,
     project_total,
     total_monthly_interest,
     unallocated_surplus,
@@ -73,6 +80,23 @@ class AccountIn(BaseModel):
         return self
 
 
+class PensionIn(BaseModel):
+    name: Name
+    value_pence: int
+    provider: Literal["Smart Pension", "Royal London", "Other"] = "Smart Pension"
+    employer: str = ""
+    monthly_contribution_pence: int = 0
+    annual_growth_bp: int = 0
+    status: Literal["open", "closed"] = "open"
+
+    @model_validator(mode="after")
+    def closed_pot_takes_no_contribution(self) -> "PensionIn":
+        """A pot that is closed keeps its value and its growth, but takes no money."""
+        if self.status == "closed":
+            self.monthly_contribution_pence = 0
+        return self
+
+
 class IncomeIn(BaseModel):
     name: Name
     monthly_amount_pence: int
@@ -97,6 +121,13 @@ STATIC_DIR = Path(__file__).parent / "static"
 BANKS = [
     {"name": "Moneybox", "logo": "/logos/moneybox.png"},
     {"name": "RBS", "logo": "/logos/rbs.png"},
+]
+
+# Pension pots sit with a provider rather than a bank, so they have their own list.
+PENSION_PROVIDERS = [
+    {"name": "Smart Pension", "logo": "/logos/smart-pension.png"},
+    {"name": "Royal London", "logo": "/logos/royal-london.png"},
+    {"name": "Other", "logo": ""},
 ]
 
 app = FastAPI(title="Finance-Tracker")
@@ -183,6 +214,50 @@ def remove_account(account_id: int, db=Depends(get_db)) -> Response:
         raise HTTPException(status_code=404, detail="account not found")
     capture_snapshot(db, trigger="Write")
     return Response(status_code=204)
+
+
+@app.get("/pension-providers")
+def get_pension_providers() -> list[dict]:
+    return PENSION_PROVIDERS
+
+
+@app.get("/pensions")
+def get_pensions(db=Depends(get_db)) -> list[dict]:
+    return [asdict(pension) for pension in list_pensions(db)]
+
+
+@app.get("/pension-projections")
+def get_pension_projections(
+    months: str = Query(default=None),
+    db=Depends(get_db),
+) -> list[dict]:
+    horizons = _parse_horizons(months)
+    pensions = list_pensions(db)
+    return [
+        {
+            "months": horizon,
+            "total_pence": project_pension_total(pensions, horizon),
+        }
+        for horizon in horizons
+    ]
+
+
+@app.post("/pensions", status_code=201)
+def create_pension(payload: PensionIn, db=Depends(get_db)) -> dict:
+    pension = Pension(**payload.model_dump())
+    pension_id = insert_pension(db, pension)
+    capture_snapshot(db, trigger="Write")
+    return asdict(get_pension(db, pension_id))
+
+
+@app.put("/pensions/{pension_id}")
+def replace_pension(pension_id: int, payload: PensionIn, db=Depends(get_db)) -> dict:
+    pension = Pension(**payload.model_dump())
+    changed = update_pension(db, pension_id, pension)
+    if not changed:
+        raise HTTPException(status_code=404, detail="pension not found")
+    capture_snapshot(db, trigger="Write")
+    return asdict(get_pension(db, pension_id))
 
 
 @app.get("/income")
@@ -299,6 +374,7 @@ def get_summary(db=Depends(get_db)) -> dict:
         accounts, summary["available_to_save_pence"]
     )
     summary["monthly_interest_pence"] = total_monthly_interest(accounts)
+    summary["pension_total_pence"] = pension_total(list_pensions(db))
     return summary
 
 

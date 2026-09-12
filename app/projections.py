@@ -10,6 +10,12 @@ AccountKind = Literal["savings", "credit_card"]
 Bank = Literal["Moneybox", "RBS"]
 
 
+PensionProvider = Literal["Smart Pension", "Royal London", "Other"]
+
+
+PensionStatus = Literal["open", "closed"]
+
+
 def default_bank(name: str, kind: AccountKind = "savings") -> Bank:
     """Pick the bank an account sits with from its name.
 
@@ -33,6 +39,18 @@ class Account:
     kind: AccountKind = "savings"
     bank: Bank = "RBS"
     accrues_interest: bool = True
+    id: Optional[int] = None
+
+
+@dataclass(frozen=True)
+class Pension:
+    name: str
+    value_pence: int
+    provider: PensionProvider = "Smart Pension"
+    employer: str = ""
+    monthly_contribution_pence: int = 0
+    annual_growth_bp: int = 0
+    status: PensionStatus = "open"
     id: Optional[int] = None
 
 
@@ -112,6 +130,29 @@ def project_total(
         for account in accounts
     )
     return total + surplus_pence * months
+
+
+def pension_monthly_contribution(pension: Pension) -> int:
+    """A closed pot keeps its value and its growth, but takes no new money."""
+    result = 0 if pension.status == "closed" else pension.monthly_contribution_pence
+    return result
+
+
+def project_pension(pension: Pension, months: int) -> int:
+    return project_balance(
+        principal_pence=pension.value_pence,
+        annual_rate_bp=pension.annual_growth_bp,
+        monthly_pence=pension_monthly_contribution(pension),
+        months=months,
+    )
+
+
+def pension_total(pensions: Iterable[Pension]) -> int:
+    return sum(pension.value_pence for pension in pensions)
+
+
+def project_pension_total(pensions: Iterable[Pension], months: int) -> int:
+    return sum(project_pension(pension, months) for pension in pensions)
 
 
 def unallocated_surplus(

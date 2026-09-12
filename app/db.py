@@ -10,8 +10,10 @@ from app.projections import (
     Account,
     Expense,
     IncomeSource,
+    Pension,
     Snapshot,
     default_bank,
+    pension_total,
 )
 
 SCHEMA = """
@@ -24,6 +26,18 @@ CREATE TABLE IF NOT EXISTS accounts (
     kind TEXT NOT NULL DEFAULT 'savings' CHECK (kind IN ('savings', 'credit_card')),
     bank TEXT NOT NULL DEFAULT 'RBS' CHECK (bank IN ('Moneybox', 'RBS')),
     accrues_interest INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS pensions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    provider TEXT NOT NULL DEFAULT 'Smart Pension'
+        CHECK (provider IN ('Smart Pension', 'Royal London', 'Other')),
+    employer TEXT NOT NULL DEFAULT '',
+    value_pence INTEGER NOT NULL DEFAULT 0,
+    monthly_contribution_pence INTEGER NOT NULL DEFAULT 0,
+    annual_growth_bp INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed'))
 );
 
 CREATE TABLE IF NOT EXISTS income_sources (
@@ -220,6 +234,65 @@ def update_account(conn: sqlite3.Connection, account_id: int, account: Account) 
 
 def delete_account(conn: sqlite3.Connection, account_id: int) -> bool:
     cursor = conn.execute("DELETE FROM accounts WHERE id = ?", (account_id,))
+    conn.commit()
+    return cursor.rowcount > 0
+
+
+PENSION_INSERT_SQL = (
+    "INSERT INTO pensions "
+    "(name, provider, employer, value_pence, monthly_contribution_pence, "
+    "annual_growth_bp, status) "
+    "VALUES (?, ?, ?, ?, ?, ?, ?)"
+)
+
+_PENSION_COLUMNS = (
+    "id, name, provider, employer, value_pence, monthly_contribution_pence, "
+    "annual_growth_bp, status"
+)
+
+
+def _pension_values(pension: Pension) -> tuple:
+    return (
+        pension.name,
+        pension.provider,
+        pension.employer,
+        pension.value_pence,
+        pension.monthly_contribution_pence,
+        pension.annual_growth_bp,
+        pension.status,
+    )
+
+
+def insert_pension(conn: sqlite3.Connection, pension: Pension) -> int:
+    cursor = conn.execute(PENSION_INSERT_SQL, _pension_values(pension))
+    conn.commit()
+    return cursor.lastrowid
+
+
+def list_pensions(conn: sqlite3.Connection) -> list[Pension]:
+    rows = conn.execute(
+        f"SELECT {_PENSION_COLUMNS} FROM pensions ORDER BY id"
+    ).fetchall()
+    return [Pension(**dict(row)) for row in rows]
+
+
+def get_pension(conn: sqlite3.Connection, pension_id: int) -> Optional[Pension]:
+    row = conn.execute(
+        f"SELECT {_PENSION_COLUMNS} FROM pensions WHERE id = ?",
+        (pension_id,),
+    ).fetchone()
+    return Pension(**dict(row)) if row is not None else None
+
+
+def update_pension(
+    conn: sqlite3.Connection, pension_id: int, pension: Pension
+) -> bool:
+    cursor = conn.execute(
+        "UPDATE pensions SET name = ?, provider = ?, employer = ?, value_pence = ?, "
+        "monthly_contribution_pence = ?, annual_growth_bp = ?, status = ? "
+        "WHERE id = ?",
+        _pension_values(pension) + (pension_id,),
+    )
     conn.commit()
     return cursor.rowcount > 0
 
@@ -444,12 +517,15 @@ def build_snapshot_payload(conn: sqlite3.Connection) -> dict[str, Any]:
     accounts = list_accounts(conn)
     income = list_income_sources(conn)
     expenses = list_expenses(conn)
+    pensions = list_pensions(conn)
     total_pence = sum(account.balance_pence for account in accounts)
     return {
         "accounts": [asdict(account) for account in accounts],
         "income": [asdict(source) for source in income],
         "expenses": [asdict(expense) for expense in expenses],
+        "pensions": [asdict(pension) for pension in pensions],
         "total_pence": total_pence,
+        "pension_total_pence": pension_total(pensions),
     }
 
 
