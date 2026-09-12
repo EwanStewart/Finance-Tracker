@@ -576,6 +576,7 @@
         <nav class="tabs" id="tabs" role="tablist">
             <button data-tab="overview" id="tab-btn-overview" class="active" role="tab" aria-selected="true" aria-controls="tab-overview">Overview</button>
             <button data-tab="accounts" id="tab-btn-accounts" role="tab" aria-selected="false" aria-controls="tab-accounts" tabindex="-1">Accounts</button>
+            <button data-tab="pensions" id="tab-btn-pensions" role="tab" aria-selected="false" aria-controls="tab-pensions" tabindex="-1">Pensions</button>
             <button data-tab="income" id="tab-btn-income" role="tab" aria-selected="false" aria-controls="tab-income" tabindex="-1">Income</button>
             <button data-tab="expenses" id="tab-btn-expenses" role="tab" aria-selected="false" aria-controls="tab-expenses" tabindex="-1">Expenses</button>
             <button data-tab="history" id="tab-btn-history" role="tab" aria-selected="false" aria-controls="tab-history" tabindex="-1">History</button>
@@ -630,7 +631,7 @@
         <section class="tab-panel" id="tab-accounts" role="tabpanel" aria-labelledby="tab-btn-accounts">
             <div class="card">
                 <div class="card-head">
-                    <h2>Money with each bank</h2>
+                    <h2>Money with each bank and provider</h2>
                 </div>
                 <div class="bank-totals" id="bank-totals"></div>
             </div>
@@ -676,6 +677,83 @@
                     </table>
                 </div>
                 <p class="helper-note">Enter the amount owed as a positive number.</p>
+            </div>
+        </section>
+
+        <section class="tab-panel" id="tab-pensions" role="tabpanel" aria-labelledby="tab-btn-pensions">
+            <div class="card">
+                <div class="card-head">
+                    <h2>Money with each provider</h2>
+                </div>
+                <div class="bank-totals" id="provider-totals"></div>
+                <p class="helper-note" id="pension-total"></p>
+            </div>
+            <div class="card">
+                <div class="card-head">
+                    <h2>Pot value over time</h2>
+                </div>
+                <div class="horizons" id="pension-horizons">
+                    <div class="horizon" data-pension-months="60">
+                        <div class="label">5 years</div>
+                        <div class="value" data-value></div>
+                    </div>
+                    <div class="horizon" data-pension-months="120">
+                        <div class="label">10 years</div>
+                        <div class="value" data-value></div>
+                    </div>
+                    <div class="horizon" data-pension-months="240">
+                        <div class="label">20 years</div>
+                        <div class="value" data-value></div>
+                    </div>
+                    <div class="horizon" data-pension-months="360">
+                        <div class="label">30 years</div>
+                        <div class="value" data-value></div>
+                    </div>
+                </div>
+                <p class="helper-note">Pension money is locked away, so it stays out of net wealth and the overview chart.</p>
+            </div>
+            <div class="card">
+                <div class="card-head">
+                    <h2>Open pots</h2>
+                    <button class="btn" id="add-pension">+ Add pension</button>
+                </div>
+                <div class="table-wrap">
+                    <table id="open-pensions">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Provider</th>
+                                <th>Employer</th>
+                                <th class="num">Value</th>
+                                <th class="num">Monthly</th>
+                                <th class="num">Growth</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-head">
+                    <h2>Closed pots</h2>
+                </div>
+                <div class="table-wrap">
+                    <table id="closed-pensions">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Provider</th>
+                                <th>Employer</th>
+                                <th class="num">Value</th>
+                                <th class="num">Growth</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <p class="helper-note">A closed pot takes no more contributions, but keeps growing. Closing cannot be undone.</p>
             </div>
         </section>
 
@@ -806,18 +884,25 @@
     </dialog>
     <script>
         const NO_VALUE = 'n/a';
-        const cache = { accounts: [], income: [], expenses: [], summary: null };
+        const cache = { accounts: [], income: [], expenses: [], pensions: [], summary: null };
 
         let banks = [];
+        let providers = [];
 
-        const bankLogo = (name) => banks.find((bank) => bank.name === name)?.logo ?? '';
+        const logoFor = (list, name) => list.find((item) => item.name === name)?.logo ?? '';
 
-        function bankImage(name) {
+        function logoImage(list, name) {
             const image = document.createElement('img');
-            image.src = bankLogo(name);
+            image.src = logoFor(list, name);
             image.alt = '';
             return image;
         }
+
+        const bankLogo = (name) => logoFor(banks, name);
+
+        const bankImage = (name) => logoImage(banks, name);
+
+        const providerImage = (name) => logoImage(providers, name);
 
         function _bankCell(row, bank) {
             const cell = row.insertCell();
@@ -829,29 +914,47 @@
             return cell;
         }
 
-        function _bankSelectCell(row, bank) {
+        const _bankSelectCell = (row, bank) =>
+            _pickerCell(row, 'Bank', banks, bank, 'bank-select');
+
+        const rowBank = (row) => row.querySelector('.bank-select').value;
+
+        function _pickerCell(row, label, list, value, selectClass) {
             const cell = row.insertCell();
-            cell.setAttribute('data-label', 'Bank');
+            cell.setAttribute('data-label', label);
             const wrap = document.createElement('span');
             wrap.className = 'bank-picker';
-            const image = bankImage(bank);
+            const image = logoImage(list, value);
             const select = document.createElement('select');
-            select.className = 'cell-input bank-select';
-            select.setAttribute('aria-label', 'Bank');
-            for (const option of banks) {
+            select.className = `cell-input ${selectClass}`;
+            select.setAttribute('aria-label', label);
+            for (const option of list) {
                 const item = document.createElement('option');
                 item.value = option.name;
                 item.textContent = option.name;
-                item.selected = option.name === bank;
+                item.selected = option.name === value;
                 select.append(item);
             }
-            select.addEventListener('change', () => { image.src = bankLogo(select.value); });
+            select.addEventListener('change', () => { image.src = logoFor(list, select.value); });
             wrap.append(image, select);
             cell.append(wrap);
             return cell;
         }
 
-        const rowBank = (row) => row.querySelector('.bank-select').value;
+        function _providerCell(row, provider) {
+            const cell = row.insertCell();
+            cell.setAttribute('data-label', 'Provider');
+            const wrap = document.createElement('span');
+            wrap.className = 'bank';
+            wrap.append(providerImage(provider), document.createTextNode(provider));
+            cell.append(wrap);
+            return cell;
+        }
+
+        const _providerSelectCell = (row, provider) =>
+            _pickerCell(row, 'Provider', providers, provider, 'provider-select');
+
+        const rowProvider = (row) => row.querySelector('.provider-select').value;
 
         function bankTotals(accounts) {
             return banks.map((bank) => {
@@ -867,30 +970,13 @@
         }
 
         function renderBankTotals(accounts) {
-            const holder = document.getElementById('bank-totals');
-            holder.innerHTML = '';
-            for (const total of bankTotals(accounts)) {
-                const card = document.createElement('div');
-                card.className = 'bank-total';
-                card.append(bankImage(total.name));
-                const text = document.createElement('div');
-                const name = document.createElement('div');
-                name.className = 'name';
-                name.textContent = total.name;
-                const amount = document.createElement('div');
-                amount.className = 'amount';
-                amount.textContent = gbp(total.saved);
-                text.append(name, amount);
-                if (total.owed > 0) {
-                    const owed = document.createElement('div');
-                    owed.className = 'owed';
-                    owed.textContent = `${gbp(total.owed)} owed`;
-                    text.append(owed);
-                }
-                card.append(text);
-                holder.append(card);
-            }
+            // Pension providers sit alongside the banks, so one strip shows every holder.
+            renderTotalCards(
+                document.getElementById('bank-totals'),
+                bankTotals(accounts).concat(providerTotals(cache.pensions))
+            );
         }
+
         const gbp = (pence) => new Intl.NumberFormat('en-GB', {
             style: 'currency', currency: 'GBP'
         }).format(pence / 100);
@@ -1188,6 +1274,16 @@
             const [edit, del] = cell.querySelectorAll('button');
             edit.addEventListener('click', onEdit);
             del.addEventListener('click', () => runBusy(del, 'Deleting…', onDelete));
+        }
+
+        function addPotActions(row, onEdit, onClose) {
+            const cell = row.insertCell();
+            cell.className = 'row-actions';
+            cell.innerHTML = '<button class="btn btn-ghost">Edit</button>' +
+                (onClose ? ' <button class="btn btn-ghost">Close pot</button>' : '');
+            const [edit, close] = cell.querySelectorAll('button');
+            edit.addEventListener('click', onEdit);
+            if (onClose) close.addEventListener('click', () => runBusy(close, 'Closing…', onClose));
         }
 
         function addEditActions(row, buildPayload, onSave, onCancel) {
@@ -1687,6 +1783,184 @@
             renderSavingsInterestTotal(accounts);
         }
 
+
+        function pensionEditPayload(row) {
+            const field = (label) => row.querySelector(`input[aria-label="${label}"]`);
+            const monthly = field('Monthly');
+            const checks = [
+                [field('Name'), nameProblem],
+                [field('Value'), amountProblem],
+                [field('Growth'), rateProblem],
+            ];
+            if (monthly) checks.push([monthly, amountProblem]);
+            return rowIsValid(row, checks) ? {
+                name: field('Name').value.trim(),
+                provider: rowProvider(row),
+                employer: field('Employer').value.trim(),
+                value_pence: toPence(field('Value').value),
+                monthly_contribution_pence: monthly ? toPence(monthly.value) : 0,
+                annual_growth_bp: toBasisPoints(field('Growth').value),
+                status: row.dataset.status ?? 'open',
+            } : null;
+        }
+
+        function renderPensionEditRow(tbody, pension, onSave, onCancel) {
+            const row = tbody.insertRow();
+            row.className = 'editing';
+            row.dataset.status = pension?.status ?? 'open';
+            _labelledInputCell(row, 'Name', false, pension?.name ?? '', 'Pot name');
+            _providerSelectCell(row, pension?.provider ?? 'Smart Pension');
+            _labelledInputCell(row, 'Employer', false, pension?.employer ?? '', 'Employer');
+            _labelledInputCell(row, 'Value', true, pension ? (pension.value_pence / 100).toFixed(2) : '', '0.00', '£');
+            // A closed pot has no contribution column to edit.
+            if (row.dataset.status === 'open') {
+                _labelledInputCell(row, 'Monthly', true, pension ? (pension.monthly_contribution_pence / 100).toFixed(2) : '0', '0.00', '£');
+            }
+            _labelledInputCell(row, 'Growth', true, pension ? (pension.annual_growth_bp / 100).toFixed(2) : '0', 'e.g. 5.00', '%');
+            addEditActions(row, () => pensionEditPayload(row), onSave, onCancel);
+        }
+
+        function renderPensionRow(tbody, pension) {
+            const row = tbody.insertRow();
+            _labelledCell(row, 'Name', false, pension.name);
+            _providerCell(row, pension.provider);
+            _labelledCell(row, 'Employer', false, pension.employer);
+            _labelledCell(row, 'Value', true, gbp(pension.value_pence), 'balance');
+            if (pension.status === 'open') {
+                _labelledCell(row, 'Monthly', true, gbp(pension.monthly_contribution_pence));
+            }
+            _labelledCell(row, 'Growth', true, (pension.annual_growth_bp / 100).toFixed(2) + '%');
+            addPotActions(
+                row,
+                () => startEditPension(pension, row),
+                pension.status === 'open' ? () => closePension(pension) : null
+            );
+        }
+
+        function startEditPension(pension, existingRow) {
+            if (!claimEditSlot()) return;
+            const tbody = existingRow.parentElement;
+            const insertBefore = existingRow.nextSibling;
+            existingRow.remove();
+            const tmp = document.createElement('tbody');
+            renderPensionEditRow(
+                tmp,
+                pension,
+                async (payload) => {
+                    await apiPut(`/pensions/${pension.id}`, payload);
+                    await afterWrite('pensions');
+                },
+                () => rerenderSection('pensions')
+            );
+            tbody.insertBefore(tmp.firstElementChild, insertBefore);
+        }
+
+        function startAddPension() {
+            if (!claimEditSlot()) return;
+            const tbody = document.querySelector('#open-pensions tbody');
+            renderPensionEditRow(
+                tbody, null,
+                async (payload) => {
+                    await apiPost('/pensions', payload);
+                    await afterWrite('pensions');
+                },
+                () => rerenderSection('pensions')
+            );
+        }
+
+        async function closePension(pension) {
+            const confirmed = await askConfirm(
+                'Close this pot?',
+                `"${pension.name}" keeps its ${gbp(pension.value_pence)} and carries on growing, ` +
+                'but takes no more contributions. This cannot be undone.',
+                'Close pot'
+            );
+            if (!confirmed) return;
+            await apiPut(`/pensions/${pension.id}`, { ...pension, status: 'closed' });
+            await afterWrite('pensions');
+        }
+
+        function providerTotals(pensions) {
+            return providers
+                .map((provider) => ({
+                    name: provider.name,
+                    logo: provider.logo,
+                    saved: pensions
+                        .filter((p) => p.provider === provider.name)
+                        .reduce((total, p) => total + p.value_pence, 0),
+                    owed: 0,
+                }))
+                .filter((total) => total.saved > 0);
+        }
+
+        function renderTotalCards(holder, totals) {
+            holder.innerHTML = '';
+            for (const total of totals) {
+                const card = document.createElement('div');
+                card.className = 'bank-total';
+                const image = document.createElement('img');
+                image.src = total.logo;
+                image.alt = '';
+                card.append(image);
+                const text = document.createElement('div');
+                const name = document.createElement('div');
+                name.className = 'name';
+                name.textContent = total.name;
+                const amount = document.createElement('div');
+                amount.className = 'amount';
+                amount.textContent = gbp(total.saved);
+                text.append(name, amount);
+                if (total.owed > 0) {
+                    const owed = document.createElement('div');
+                    owed.className = 'owed';
+                    owed.textContent = `${gbp(total.owed)} owed`;
+                    text.append(owed);
+                }
+                card.append(text);
+                holder.append(card);
+            }
+        }
+
+        function renderPensionTotal(pensions) {
+            const note = document.getElementById('pension-total');
+            const total = pensions.reduce((sum, p) => sum + p.value_pence, 0);
+            const monthly = pensions
+                .filter((p) => p.status === 'open')
+                .reduce((sum, p) => sum + p.monthly_contribution_pence, 0);
+            note.textContent =
+                `${gbp(total)} across ${pensions.length} ${pensions.length === 1 ? 'pot' : 'pots'}, ` +
+                `taking ${gbp(monthly)} a month.`;
+        }
+
+        async function renderPensionHorizons() {
+            const cells = [...document.querySelectorAll('.horizon[data-pension-months]')];
+            const months = cells.map((el) => el.dataset.pensionMonths).join(',');
+            const points = await getJson(`/pension-projections?months=${months}`);
+            for (const el of cells) {
+                const point = points.find((p) => p.months === Number(el.dataset.pensionMonths));
+                el.querySelector('[data-value]').textContent =
+                    point ? gbpShort(point.total_pence) : NO_VALUE;
+            }
+        }
+
+        function renderPensions(pensions) {
+            cache.pensions = pensions;
+            const openBody = document.querySelector('#open-pensions tbody');
+            const closedBody = document.querySelector('#closed-pensions tbody');
+            openBody.innerHTML = '';
+            closedBody.innerHTML = '';
+            const byValueDesc = (a, b) => b.value_pence - a.value_pence;
+            for (const pot of pensions.filter((p) => p.status === 'open').sort(byValueDesc)) {
+                renderPensionRow(openBody, pot);
+            }
+            for (const pot of pensions.filter((p) => p.status === 'closed').sort(byValueDesc)) {
+                renderPensionRow(closedBody, pot);
+            }
+            renderTotalCards(document.getElementById('provider-totals'), providerTotals(pensions));
+            renderPensionTotal(pensions);
+            renderBankTotals(cache.accounts);
+        }
+
         function startAddSavings() {
             if (!claimEditSlot()) return;
             const tbody = document.querySelector('#savings-accounts tbody');
@@ -1764,7 +2038,8 @@
         });
 
         const TABLE_IDS = ['income', 'savings-accounts', 'credit-cards',
-            'monthly-expenses', 'yearly-expenses', 'snapshots'];
+            'open-pensions', 'closed-pensions', 'monthly-expenses',
+            'yearly-expenses', 'snapshots'];
 
         function placeholderRow(id, text) {
             const table = document.getElementById(id);
@@ -1789,6 +2064,8 @@
             'income': 'No income sources yet. Add one to start projecting.',
             'savings-accounts': 'No savings accounts yet. Add one to start projecting.',
             'credit-cards': 'No credit cards. Add one if you carry a balance.',
+            'open-pensions': 'No pension pots yet. Add the one your employer pays into.',
+            'closed-pensions': 'No closed pots. A pot from a past employer belongs here.',
             'monthly-expenses': 'No monthly expenses yet.',
             'yearly-expenses': 'No yearly expenses yet.',
             'snapshots': 'Snapshots appear here after your first edit, or press Snapshot now to label a moment.',
@@ -2018,16 +2295,20 @@
         }
 
         async function loadBanks() {
-            // The list never changes while the page is open, so it loads once.
-            banks = await getJson('/banks');
+            // Neither list changes while the page is open, so both load once.
+            [banks, providers] = await Promise.all([
+                getJson('/banks'),
+                getJson('/pension-providers'),
+            ]);
         }
 
         async function refresh() {
-            const [projections, accounts, income, expenses, snapshots, summary] = await Promise.all([
+            const [projections, accounts, income, expenses, pensions, snapshots, summary] = await Promise.all([
                 getJson('/projections'),
                 getJson('/accounts'),
                 getJson('/income'),
                 getJson('/expenses'),
+                getJson('/pensions'),
                 getJson('/snapshots'),
                 getJson('/summary'),
             ]);
@@ -2038,6 +2319,8 @@
             renderChart(projections);
             renderIncome(income);
             renderExpenses(expenses);
+            cache.accounts = accounts;
+            renderPensions(pensions);
             renderAccounts(accounts);
             renderAllocationAlert(accounts, summary);
             renderSurplusNote(summary);
@@ -2045,17 +2328,20 @@
             renderHistory();
             markEmptyTables();
             await renderCustomHorizon();
+            await renderPensionHorizons();
         }
 
         const SECTION_ENDPOINTS = {
             income: '/income',
             expenses: '/expenses',
+            pensions: '/pensions',
         };
 
         function rerenderSection(section) {
             if (section === 'accounts') renderAccounts(cache.accounts);
             if (section === 'income') renderIncome(cache.income);
             if (section === 'expenses') renderExpenses(cache.expenses);
+            if (section === 'pensions') renderPensions(cache.pensions);
             markEmptyTables();
         }
 
@@ -2079,13 +2365,17 @@
             if (section === 'accounts') renderAccounts(accounts);
             if (section === 'income') renderIncome(rows);
             if (section === 'expenses') renderExpenses(rows);
+            if (section === 'pensions') {
+                renderPensions(rows);
+                await renderPensionHorizons();
+            }
             markEmptyTables();
             await renderCustomHorizon();
             // Every write records a snapshot on the server.
             await refreshHistory();
         }
 
-        const TAB_NAMES = ['overview', 'accounts', 'income', 'expenses', 'history'];
+        const TAB_NAMES = ['overview', 'accounts', 'pensions', 'income', 'expenses', 'history'];
 
         function activateTab(name) {
             document.querySelectorAll('#tabs button').forEach((b) => {
@@ -2138,6 +2428,7 @@
         }
         document.getElementById('add-savings').addEventListener('click', startAddSavings);
         document.getElementById('add-credit-card').addEventListener('click', startAddCreditCard);
+        document.getElementById('add-pension').addEventListener('click', startAddPension);
         document.getElementById('add-income').addEventListener('click', startAddIncome);
         document.getElementById('add-monthly-expense').addEventListener('click', () => startAddExpense('monthly'));
         document.getElementById('add-yearly-expense').addEventListener('click', () => startAddExpense('yearly'));
