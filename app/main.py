@@ -138,7 +138,16 @@ def index():
     return FileResponse(STATIC_DIR / "index.html")
 
 
+@app.get("/manifest.webmanifest", include_in_schema=False)
+def manifest():
+    return FileResponse(
+        STATIC_DIR / "manifest.webmanifest",
+        media_type="application/manifest+json",
+    )
+
+
 app.mount("/logos", StaticFiles(directory=STATIC_DIR / "logos"), name="logos")
+app.mount("/icons", StaticFiles(directory=STATIC_DIR / "icons"), name="icons")
 
 
 def get_db() -> Generator:
